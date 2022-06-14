@@ -356,6 +356,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						EffectiveNow,
 						_newScavengePoint ?? new List<ScavengePoint>()),
 					_logger ?? new FakeTFScavengerLog(),
+					thresholdForNewScavenge: 0,
 					() => "dummy stats",
 					throttle.PrettyPrint);
 

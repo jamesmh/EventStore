@@ -657,6 +657,10 @@ namespace EventStore.Core {
 						cleaner: cleaner,
 						scavengePointSource: scavengePointSource,
 						scavengerLogger: logger,
+						// threshold < 0: execute all chunks, even those with no weight
+						// threshold = 0: execute all chunks with weight greater than 0
+						// threshold > 0: execute all chunks above a certain weight
+						thresholdForNewScavenge: message.Threshold ?? 0,
 						getDbStats: () => sqlite.GetStats().PrettyPrint(),
 						getThrottleStats: () => throttle.PrettyPrint());
 

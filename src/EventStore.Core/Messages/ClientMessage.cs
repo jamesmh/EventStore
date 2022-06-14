@@ -1488,6 +1488,7 @@ namespace EventStore.Core.Messages {
 			public readonly IPrincipal User;
 			public readonly int StartFromChunk;
 			public readonly int Threads;
+			public readonly int? Threshold;
 			public readonly int? ThrottlePercent;
 
 			public ScavengeDatabase(
@@ -1496,6 +1497,7 @@ namespace EventStore.Core.Messages {
 				IPrincipal user,
 				int startFromChunk,
 				int threads,
+				int? threshold,
 				int? throttlePercent) {
 
 				Ensure.NotNull(envelope, "envelope");
@@ -1504,6 +1506,7 @@ namespace EventStore.Core.Messages {
 				User = user;
 				StartFromChunk = startFromChunk;
 				Threads = threads;
+				Threshold = threshold;
 				ThrottlePercent = throttlePercent;
 			}
 		}

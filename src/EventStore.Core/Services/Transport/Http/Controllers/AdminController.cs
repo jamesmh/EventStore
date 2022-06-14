@@ -26,7 +26,7 @@ namespace EventStore.Core.Services.Transport.Http.Controllers {
 				new ControllerAction("/admin/shutdown", HttpMethod.Post, Codec.NoCodecs, SupportedCodecs, AuthorizationLevel.Ops),
 				OnPostShutdown);
 			service.RegisterAction(
-				new ControllerAction("/admin/scavenge?startFromChunk={startFromChunk}&threads={threads}&throttlePercent={throttlePercent}",
+				new ControllerAction("/admin/scavenge?startFromChunk={startFromChunk}&threads={threads}&threshold={threshold}&throttlePercent={throttlePercent}",
 					HttpMethod.Post, Codec.NoCodecs, SupportedCodecs, AuthorizationLevel.Ops), OnPostScavenge);
 			service.RegisterAction(
 				new ControllerAction("/admin/scavenge/{scavengeId}", HttpMethod.Delete, Codec.NoCodecs,
@@ -86,6 +86,17 @@ namespace EventStore.Core.Services.Transport.Http.Controllers {
 				}
 			}
 
+			int? threshold = null;
+			var thresholdVariable = match.BoundVariables["threshold"];
+			if (thresholdVariable != null) {
+				if (!int.TryParse(thresholdVariable, out var x)) {
+					SendBadRequest(entity, "threshold must be an integer");
+					return;
+				}
+
+				threshold = x;
+			}
+
 			int? throttlePercent = null;
 			var throttlePercentVariable = match.BoundVariables["throttlePercent"];
 			if (throttlePercentVariable != null) {
@@ -105,6 +116,11 @@ namespace EventStore.Core.Services.Transport.Http.Controllers {
 			args.Add(startFromChunk);
 			sb.Append("&threads={numThreads}");
 			args.Add(threads);
+
+			if (threshold != null) {
+				sb.Append("&threshold={threshold}");
+				args.Add(threshold);
+			}
 
 			if (throttlePercent != null) {
 				sb.Append("&throttlePercent={throttlePercent}");
@@ -133,7 +149,14 @@ namespace EventStore.Core.Services.Transport.Http.Controllers {
 				}
 			);
 
-			Publish(new ClientMessage.ScavengeDatabase(envelope, Guid.Empty, entity.User, startFromChunk, threads, throttlePercent));
+			Publish(new ClientMessage.ScavengeDatabase(
+				envelope: envelope,
+				correlationId: Guid.Empty,
+				user: entity.User,
+				startFromChunk: startFromChunk,
+				threads: threads,
+				threshold: threshold,
+				throttlePercent: throttlePercent));
 		}
 
 		private void OnStopScavenge(HttpEntityManager entity, UriTemplateMatch match) {

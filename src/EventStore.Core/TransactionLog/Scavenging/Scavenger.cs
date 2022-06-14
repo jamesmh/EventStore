@@ -23,6 +23,7 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 		private readonly ICleaner _cleaner;
 		private readonly IScavengePointSource _scavengePointSource;
 		private readonly ITFChunkScavengerLog _scavengerLogger;
+		private readonly int _thresholdForNewScavenge;
 		private readonly Func<string> _getDbStats;
 		private readonly Func<string> _getThrottleStats;
 
@@ -39,6 +40,7 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 			ICleaner cleaner,
 			IScavengePointSource scavengePointSource,
 			ITFChunkScavengerLog scavengerLogger,
+			int thresholdForNewScavenge,
 			Func<string> getDbStats,
 			Func<string> getThrottleStats) {
 
@@ -51,6 +53,7 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 			_cleaner = cleaner;
 			_scavengePointSource = scavengePointSource;
 			_scavengerLogger = scavengerLogger;
+			_thresholdForNewScavenge = thresholdForNewScavenge;
 			_getThrottleStats = getThrottleStats;
 			_getDbStats = getDbStats;
 		}
@@ -214,17 +217,13 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 			// latestScavengePoint is the latest one in the database
 			// nextScavengePoint is the one we are about to scavenge up to
 
-			// threshold < 0: execute all chunks, even those with no weight
-			// threshold = 0: execute all chunks with weight greater than 0
-			// threshold > 0: execute all chunks above a certain weight
-			var threshold = 0;
 			ScavengePoint nextScavengePoint;
 			var latestScavengePoint = await _scavengePointSource.GetLatestScavengePointOrDefaultAsync();
 			if (latestScavengePoint == null) {
 				Log.Trace("SCAVENGING: creating the first scavenge point.");
 				// no latest scavenge point, create the first one
 				nextScavengePoint = await _scavengePointSource
-					.AddScavengePointAsync(ExpectedVersion.NoStream, threshold: threshold);
+					.AddScavengePointAsync(ExpectedVersion.NoStream, threshold: _thresholdForNewScavenge);
 			} else {
 				// got the latest scavenge point
 				if (prevScavengePoint == null ||
@@ -243,7 +242,7 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 						expectedVersion + 1);
 
 					nextScavengePoint = await _scavengePointSource
-						.AddScavengePointAsync(expectedVersion, threshold: threshold);
+						.AddScavengePointAsync(expectedVersion, threshold: _thresholdForNewScavenge);
 				}
 			}
 
