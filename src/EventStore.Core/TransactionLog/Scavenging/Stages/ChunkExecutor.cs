@@ -95,12 +95,12 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 						new ScavengeCheckpoint.ExecutingChunks(
 							scavengePoint,
 							physicalChunk.ChunkEndNumber));
-
-					_throttle.Rest(cancellationToken);
 				} catch {
+					// invariant: there is always an open transaction whenever an exception can be thrown
 					transaction.Rollback();
 					throw;
 				}
+				_throttle.Rest(cancellationToken);
 			}
 		}
 

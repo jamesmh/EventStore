@@ -1488,15 +1488,23 @@ namespace EventStore.Core.Messages {
 			public readonly IPrincipal User;
 			public readonly int StartFromChunk;
 			public readonly int Threads;
+			public readonly int? ThrottlePercent;
 
-			public ScavengeDatabase(IEnvelope envelope, Guid correlationId, IPrincipal user, int startFromChunk,
-				int threads) {
+			public ScavengeDatabase(
+				IEnvelope envelope,
+				Guid correlationId,
+				IPrincipal user,
+				int startFromChunk,
+				int threads,
+				int? throttlePercent) {
+
 				Ensure.NotNull(envelope, "envelope");
 				Envelope = envelope;
 				CorrelationId = correlationId;
 				User = user;
 				StartFromChunk = startFromChunk;
 				Threads = threads;
+				ThrottlePercent = throttlePercent;
 			}
 		}
 

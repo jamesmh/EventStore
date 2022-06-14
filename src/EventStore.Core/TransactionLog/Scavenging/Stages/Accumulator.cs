@@ -97,6 +97,7 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 					tombstoneRecord,
 					stopwatch,
 					cancellationToken)) {
+				_throttle.Rest(cancellationToken);
 				logicalChunkNumber++;
 			}
 		}
@@ -150,10 +151,9 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 				Log.Trace("SCAVENGING: Accumulated chunk {chunk} in {elapsed}. Chunk total: {chunkTotalElapsed}",
 					logicalChunkNumber, accumulationElapsed, stopwatch.Elapsed);
 
-				_throttle.Rest(cancellationToken);
-
 				return ret;
 			} catch {
+				// invariant: there is always an open transaction whenever an exception can be thrown
 				transaction.Rollback();
 				throw;
 			}

@@ -153,11 +153,12 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 					scavengePoint,
 					streamCalc.OriginalStreamHandle));
 				LogRate("grand total (including rests)", totalCounter, stopwatch.Elapsed);
-				_throttle.Rest(cancellationToken);
 			} catch {
+				// invariant: there is always an open transaction whenever an exception can be thrown
 				transaction.Rollback();
 				throw;
 			}
+			_throttle.Rest(cancellationToken);
 		}
 
 		private void LogRate(string name, int count, TimeSpan elapsed) {

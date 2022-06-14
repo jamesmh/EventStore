@@ -1,10 +1,7 @@
 ﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
-using EventStore.Common.Utils;
-using EventStore.Core.Index;
 using EventStore.Core.Messages;
-using EventStore.Core.Services.Storage.ReaderIndex;
 using EventStore.Core.TransactionLog.Chunks;
 using EventStore.Core.TransactionLog.Scavenging;
 
@@ -19,6 +16,7 @@ namespace EventStore.Core.Services.Storage {
 			ITFChunkScavengerLog logger);
 	}
 
+	//qqqq rename, this factory covers new and old
 	public class NewScavengerFactory : IScavengerFactory {
 		private readonly Func<ClientMessage.ScavengeDatabase, ITFChunkScavengerLog, IScavenger> _create;
 

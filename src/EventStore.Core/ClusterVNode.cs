@@ -577,7 +577,7 @@ namespace EventStore.Core {
 					var throttle = new Throttle(
 						TimeSpan.FromMilliseconds(1000),
 						TimeSpan.FromMilliseconds(1000), //qqqqqqq
-						activePercent: vNodeSettings.ScavengeThrottlePercent);
+						activePercent: message.ThrottlePercent ?? vNodeSettings.ScavengeThrottlePercent);
 
 					var metastreamLookup = new LogV2SystemStreams();
 					var streamIdConverter = new LogV2StreamIdConverter();
