@@ -319,7 +319,8 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 
 				IChunkMerger chunkMerger = new ChunkMerger(
 					mergeChunks: _mergeChunks,
-					new OldScavengeChunkMergerBackend(dbResult.Db));
+					new OldScavengeChunkMergerBackend(dbResult.Db),
+					throttle: throttle);
 
 				IIndexExecutor<string> indexExecutor = new IndexExecutor<string>(
 					indexScavenger: cancellationWrappedIndexScavenger,

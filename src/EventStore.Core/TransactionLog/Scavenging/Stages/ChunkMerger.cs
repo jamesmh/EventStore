@@ -8,13 +8,16 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 
 		private readonly bool _mergeChunks;
 		private readonly IChunkMergerBackend _backend;
+		private readonly Throttle _throttle;
 
 		public ChunkMerger(
 			bool mergeChunks,
-			IChunkMergerBackend backend) {
+			IChunkMergerBackend backend,
+			Throttle throttle) {
 
 			_mergeChunks = mergeChunks;
 			_backend = backend;
+			_throttle = throttle;
 		}
 
 		public void MergeChunks(
@@ -39,7 +42,7 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 
 			if (_mergeChunks) {
 				Log.Trace("SCAVENGING: Merging chunks from checkpoint: {checkpoint}", checkpoint);
-				_backend.MergeChunks(scavengerLogger, cancellationToken);
+				_backend.MergeChunks(scavengerLogger, _throttle, cancellationToken);
 			} else {
 				Log.Trace("SCAVENGING: Merging chunks is disabled");
 			}

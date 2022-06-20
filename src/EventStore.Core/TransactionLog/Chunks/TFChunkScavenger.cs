@@ -15,6 +15,7 @@ using EventStore.Core.Services;
 using EventStore.Core.Services.Storage.ReaderIndex;
 using EventStore.Core.TransactionLog.Chunks.TFChunk;
 using EventStore.Core.TransactionLog.LogRecords;
+using EventStore.Core.TransactionLog.Scavenging;
 
 namespace EventStore.Core.TransactionLog.Chunks {
 	public class TFChunkScavenger {
@@ -142,6 +143,7 @@ namespace EventStore.Core.TransactionLog.Chunks {
 					db: _db,
 					maxChunkDataSize: _maxChunkDataSize,
 					scavengerLog: _scavengerLog,
+					throttle: new Throttle(TimeSpan.Zero, TimeSpan.Zero, 100),
 					ct: ct);
 			}
 
@@ -318,6 +320,7 @@ namespace EventStore.Core.TransactionLog.Chunks {
 			TFChunkDb db,
 			long maxChunkDataSize,
 			ITFChunkScavengerLog scavengerLog,
+			Throttle throttle,
 			CancellationToken ct) {
 
 			bool mergedSomething;
@@ -353,6 +356,7 @@ namespace EventStore.Core.TransactionLog.Chunks {
 
 					chunksToMerge.Add(chunk);
 					totalDataSize += chunk.PhysicalDataSize;
+					throttle.Rest(ct);
 				}
 
 				if (chunksToMerge.Count > 1) {

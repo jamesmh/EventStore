@@ -615,7 +615,8 @@ namespace EventStore.Core {
 
 					var chunkMerger = new ChunkMerger(
 						mergeChunks: !vNodeSettings.DisableScavengeMerging,
-						backend: new OldScavengeChunkMergerBackend(db: db));
+						backend: new OldScavengeChunkMergerBackend(db: db),
+						throttle: throttle);
 
 					//qq make sure the maxreaders for the pool is high enough to accommodate us
 					var indexExecutor = new IndexExecutor<string>(

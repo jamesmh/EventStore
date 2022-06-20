@@ -9,7 +9,11 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 			_db = db;
 		}
 
-		public void MergeChunks(ITFChunkScavengerLog scavengerLogger, CancellationToken cancellationToken) {
+		public void MergeChunks(
+			ITFChunkScavengerLog scavengerLogger,
+			Throttle throttle,
+			CancellationToken cancellationToken) {
+
 			// todo: if time permits we could look in more detail at this implementation and see if it
 			// could be improved or replaced.
 			// todo: if time permits we could stop after the chunk with the scavenge point
@@ -19,6 +23,7 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 				db: _db,
 				maxChunkDataSize: _db.Config.ChunkSize,
 				scavengerLog: scavengerLogger,
+				throttle: throttle,
 				ct: cancellationToken);
 		}
 	}
