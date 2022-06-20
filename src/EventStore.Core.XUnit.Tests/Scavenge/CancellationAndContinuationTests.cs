@@ -45,7 +45,6 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 					Assert.Null(accumulating.DoneLogicalChunkNumber);
 				})
 				.RunAsync();
-
 		}
 
 		[Fact]

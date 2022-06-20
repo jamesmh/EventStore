@@ -620,7 +620,6 @@ namespace EventStore.Core {
 
 					// the backends (and therefore connections) are scoped to the run of the scavenge
 					// so that we don't keep hold of memory used for the page caches between scavenges
-					//qq check this is true
 					var backendPool = new ObjectPool<IScavengeStateBackend<string>>(
 						objectPoolName: "scavenge backend pool",
 						initialCount: 1,

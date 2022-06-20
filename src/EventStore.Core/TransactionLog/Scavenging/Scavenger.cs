@@ -57,11 +57,16 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 
 		public string ScavengeId => _scavengerLogger.ScavengeId;
 
+		public void Dispose() {
+			_state.Dispose();
+		}
+
 		public async Task ScavengeAsync(CancellationToken cancellationToken) {
 			await Task.Yield(); // get off the main queue
 			Log.Trace("SCAVENGING: started scavenging DB.");
 			LogCollisions();
 
+			_recordedTimes.Clear();
 			var stopwatch = Stopwatch.StartNew();
 
 			var result = ScavengeResult.Success;

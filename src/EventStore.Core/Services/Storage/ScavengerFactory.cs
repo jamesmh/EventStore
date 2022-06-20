@@ -54,6 +54,9 @@ namespace EventStore.Core.Services.Storage {
 			_tfChunkScavenger = tfChunkScavenger;
 		}
 
+		public void Dispose() {
+		}
+
 		public Task ScavengeAsync(CancellationToken cancellationToken) {
 			return _tfChunkScavenger.Scavenge(
 				alwaysKeepScavenged: _alwaysKeepScavenged,

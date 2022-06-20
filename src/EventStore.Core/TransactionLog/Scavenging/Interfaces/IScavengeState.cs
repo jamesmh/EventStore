@@ -9,7 +9,8 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 		IScavengeStateForIndexExecutor<TStreamId>,
 		IScavengeStateForChunkMerger,
 		IScavengeStateForChunkExecutor<TStreamId>,
-		IScavengeStateForCleaner {
+		IScavengeStateForCleaner,
+		IDisposable {
 
 		bool TryGetCheckpoint(out ScavengeCheckpoint checkpoint);
 

@@ -86,7 +86,11 @@ namespace EventStore.Core.Services.Storage {
 
 		private async void HandleCleanupWhenFinished(Task newScavengeTask, IScavenger newScavenge) {
 			// Clean up the reference to the TfChunkScavenger once it's finished.
-			await newScavengeTask;
+			try {
+				await newScavengeTask;
+			} finally {
+				newScavenge.Dispose();
+			}
 
 			lock (_lock) {
 				if (newScavenge == _currentScavenge) {

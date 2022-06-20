@@ -1,4 +1,5 @@
-﻿using System.Threading;
+﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace EventStore.Core.TransactionLog.Scavenging {
@@ -20,7 +21,7 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 	// - Merger merges the chunks
 	// - Cleaner removes parts of the scavenge state that are no longer needed
 	//   (as determined by the calculator)
-	public interface IScavenger {
+	public interface IScavenger : IDisposable {
 		string ScavengeId { get; }
 		Task ScavengeAsync(CancellationToken cancellationToken);
 	}

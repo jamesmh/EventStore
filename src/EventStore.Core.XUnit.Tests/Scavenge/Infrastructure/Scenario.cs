@@ -234,7 +234,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 
 			readIndex.Init(dbResult.Db.Config.WriterCheckpoint.Read());
 
-			ScavengeState<string> scavengeState = null;
+			Scavenger<string> sut = null;
 			try {
 				var cancellationTokenSource = new CancellationTokenSource();
 				var metastreamLookup = new LogV2SystemStreams();
@@ -348,7 +348,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 				indexExecutor = new TracingIndexExecutor<string>(indexExecutor, Tracer);
 				cleaner = new TracingCleaner(cleaner, Tracer);
 
-				scavengeState = new ScavengeStateBuilder(hasher, metastreamLookup)
+				var scavengeState = new ScavengeStateBuilder(hasher, metastreamLookup)
 					.TransformBuilder(_stateTransform)
 					.CancelWhenCheckpointing(_cancelWhenCheckpointingType, cancellationTokenSource)
 					.WithTracer(Tracer)
@@ -358,7 +358,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 				var expectSuccess = _logger == null;
 				var successLogger = expectSuccess ? new FakeTFScavengerLog() : null;
 
-				var sut = new Scavenger<string>(
+				sut = new Scavenger<string>(
 					scavengeState,
 					accumulator,
 					calculator,
@@ -484,7 +484,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 				return dbResult;
 
 			} finally {
-				scavengeState?.Dispose();
+				sut?.Dispose();
 				readIndex.Close();
 				dbResult.Db.Close();
 			}
