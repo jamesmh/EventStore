@@ -1,5 +1,7 @@
 ﻿using System.IO;
 using System.Threading.Tasks;
+using EventStore.Core.DataStructures;
+using EventStore.Core.TransactionLog.Chunks;
 using Microsoft.Data.Sqlite;
 using Xunit;
 
@@ -8,7 +10,8 @@ namespace EventStore.Core.XUnit.Tests.Scavenge.Sqlite {
 		private readonly string _connectionString;
 
 		public SqliteConnection DbConnection { get; set; }
-		
+		public ObjectPool<SqliteConnection> DbConnectionPool { get; set; }
+
 		public string Directory { get; }
 
 		public SqliteDbFixture(string dir) {
@@ -22,12 +25,26 @@ namespace EventStore.Core.XUnit.Tests.Scavenge.Sqlite {
 		
 		public Task InitializeAsync() {
 			DbConnection = new SqliteConnection(_connectionString);
+			DbConnectionPool = new ObjectPool<SqliteConnection>(
+				objectPoolName: "sqlite connections",
+				initialCount: 0,
+				maxCount: TFChunkScavenger.MaxThreadCount + 1,
+				factory: () => {
+					var dbConnection = new SqliteConnection(_connectionString);
+					dbConnection.Open();
+					return dbConnection;
+				},
+				dispose: dbConnection => {
+					dbConnection.Close();
+					dbConnection.Dispose();
+				});
 			return DbConnection.OpenAsync();
 		}
 
 		public Task DisposeAsync() {
 			DbConnection.Close();
 			DbConnection.Dispose();
+			DbConnectionPool.Dispose();
 			return Task.CompletedTask;
 		}
 	}

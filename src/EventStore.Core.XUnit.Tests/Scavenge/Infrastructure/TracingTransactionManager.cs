@@ -15,6 +15,10 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 			_wrapped.RegisterOnRollback(onRollback);
 		}
 
+		public void UnregisterOnRollback() {
+			_wrapped.UnregisterOnRollback();
+		}
+
 		public void Begin() {
 			_wrapped.Begin();
 		}

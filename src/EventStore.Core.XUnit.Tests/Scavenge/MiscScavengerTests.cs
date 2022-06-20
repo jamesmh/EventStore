@@ -27,7 +27,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						// stream.
 						Rec.Write(t++, "$$ab-1", "$metadata", metadata: MaxCount1))
 					.Chunk(ScavengePointRec(t++)))
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
 				.RunAsync(x => new[] {
 					x.Recs[0].KeepIndexes(0, 1),
 					x.Recs[1],
@@ -44,7 +44,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						Rec.Write(t++, "ab-1"),
 						Rec.Write(t++, "ab-1"))
 					.Chunk(ScavengePointRec(t++)))
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
 				.RunAsync(x => new[] {
 					x.Recs[0].KeepIndexes(0, 1),
 					x.Recs[1],
@@ -61,7 +61,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						Rec.Write(t++, "ab-1"),
 						Rec.Write(t++, "ab-2"))
 					.Chunk(ScavengePointRec(t++)))
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
 				.RunAsync(x => new[] {
 					x.Recs[0].KeepIndexes(0, 1),
 					x.Recs[1],
@@ -78,7 +78,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						Rec.Write(t++, "ab-1"),
 						Rec.Write(t++, "$$ab-1", "$metadata", metadata: MaxCount1))
 					.Chunk(ScavengePointRec(t++)))
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
 				.RunAsync(x => new[] {
 					x.Recs[0].KeepIndexes(0, 1),
 					x.Recs[1],
@@ -95,7 +95,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						Rec.Write(t++, "aa-1"),
 						Rec.Write(t++, "$$aa-1", "$metadata", metadata: MaxCount1))
 					.Chunk(ScavengePointRec(t++)))
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
 				.RunAsync(x => new[] {
 					x.Recs[0].KeepIndexes(0, 1),
 					x.Recs[1],
@@ -116,7 +116,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						Rec.Write(t++, "cb-2"),
 						Rec.Write(t++, "cb-2"))
 					.Chunk(ScavengePointRec(t++)))
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
 				.RunAsync(x => new[] {
 					x.Recs[0].KeepIndexes(0, 1, 2),
 					x.Recs[1],
@@ -135,7 +135,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						Rec.Write(t++, "$$ab-1", "$metadata", metadata: MaxCount3),
 						Rec.Write(t++, "$$cd-2", "$metadata", metadata: MaxCount4))
 					.Chunk(ScavengePointRec(t++)))
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
 				.RunAsync(x => new[] {
 					x.Recs[0].KeepIndexes(2, 3),
 					x.Recs[1],
@@ -154,7 +154,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						Rec.Write(t++, "$$aa-1", "$metadata", metadata: MaxCount3),
 						Rec.Write(t++, "$$aa-2", "$metadata", metadata: MaxCount4))
 					.Chunk(ScavengePointRec(t++)))
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
 				.RunAsync(x => new[] {
 					x.Recs[0].KeepIndexes(2, 3),
 					x.Recs[1],
@@ -173,7 +173,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						Rec.Write(t++, "$$ab-1", "$metadata", metadata: MaxCount3),
 						Rec.Write(t++, "$$cb-2", "$metadata", metadata: MaxCount4))
 					.Chunk(ScavengePointRec(t++)))
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
 				.RunAsync(x => new[] {
 					x.Recs[0].KeepIndexes(2, 3),
 					x.Recs[1],
@@ -192,7 +192,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						Rec.Write(t++, "$$ab-1", "$metadata", metadata: MaxCount3),
 						Rec.Write(t++, "$$ac-2", "$metadata", metadata: MaxCount4))
 					.Chunk(ScavengePointRec(t++)))
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
 				.RunAsync(x => new[] {
 					x.Recs[0].KeepIndexes(2, 3),
 					x.Recs[1],
@@ -211,7 +211,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						Rec.Write(t++, "$$ab-1", "$metadata", metadata: MaxCount3),
 						Rec.Write(t++, "$$ab-2", "$metadata", metadata: MaxCount4))
 					.Chunk(ScavengePointRec(t++)))
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
 				.RunAsync(x => new[] {
 					x.Recs[0].KeepIndexes(2, 3),
 					x.Recs[1],
@@ -230,7 +230,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						Rec.Write(t++, "$$ab-1", "$metadata", metadata: MaxCount3),
 						Rec.Write(t++, "$$ba-2", "$metadata", metadata: MaxCount4))
 					.Chunk(ScavengePointRec(t++)))
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
 				.RunAsync(x => new[] {
 					x.Recs[0].KeepIndexes(2, 3),
 					x.Recs[1],
@@ -247,7 +247,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						Rec.Write(t++, "$$ab-1", "$metadata", metadata: MaxCount1),
 						Rec.Write(t++, "$$ab-1", "$metadata", metadata: MaxCount2))
 					.Chunk(ScavengePointRec(t++)))
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
 				.RunAsync(x => new[] {
 					x.Recs[0].KeepIndexes(1),
 					x.Recs[1],

@@ -4,7 +4,7 @@ using Microsoft.Data.Sqlite;
 using SQLitePCL;
 
 namespace EventStore.Core.TransactionLog.Scavenging.Sqlite {
-	public class SqliteBackend {
+	public class SqliteBackend : IDisposable {
 		private readonly SqliteConnection _connection;
 		private SqliteTransaction _transaction;
 		private const int SqliteDuplicateKeyError = 19;
@@ -17,6 +17,11 @@ namespace EventStore.Core.TransactionLog.Scavenging.Sqlite {
 
 		public SqliteBackend(SqliteConnection connection) {
 			_connection = connection;
+		}
+
+		public void Dispose() {
+			_connection.Close();
+			_connection.Dispose();
 		}
 
 		public void InitializeDb(string createSql) {

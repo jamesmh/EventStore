@@ -10,7 +10,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 		[Fact]
 		public async Task simple_tombstone() {
 			var t = 0;
-			var (state, db) = await new Scenario()
+			await new Scenario()
 				.WithUnsafeIgnoreHardDeletes()
 				.WithDbPath(Fixture.Directory)
 				.WithDb(x => x
@@ -20,14 +20,15 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						Rec.Write(t++, "ab-1"),
 						Rec.CommittedDelete(t++, "ab-1"))
 					.Chunk(ScavengePointRec(t++, threshold: 1000)))
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
+				.AssertState(state => {
+					Assert.False(state.TryGetOriginalStreamData("ab-1", out _));
+					Assert.False(state.TryGetMetastreamData("$$ab-1", out _));
+				})
 				.RunAsync(x => new[] {
 					x.Recs[0].KeepIndexes(),
 					x.Recs[1],
 				});
-
-			Assert.False(state.TryGetOriginalStreamData("ab-1", out _));
-			Assert.False(state.TryGetMetastreamData("$$ab-1", out _));
 		}
 
 		[Fact]
@@ -38,7 +39,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 			// the normal scavenge with the tombstone
 			var t = 0;
 			var scenario = new Scenario();
-			var (state, db) = await scenario
+			var db = await scenario
 				.WithDbPath(Fixture.Directory)
 				.WithDb(x => x
 					.Chunk(
@@ -48,7 +49,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						Rec.CommittedDelete(t++, "ab-1"))
 					.Chunk(ScavengePointRec(t++)) // SP-0
 					.Chunk(ScavengePointRec(t++))) // SP-1
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
 				.MutateState(x => {
 					// make it scavenge SP-0
 					x.SetCheckpoint(new ScavengeCheckpoint.Accumulating(
@@ -64,19 +65,20 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 				});
 
 			// the second scavenge with unsafeharddeletes should remove the tombstone
-			(state, db) = await new Scenario()
+			await new Scenario()
 				.WithDbPath(Fixture.Directory)
 				.WithDb(db)
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
 				.WithUnsafeIgnoreHardDeletes()
+				.AssertState(state => {
+					Assert.False(state.TryGetOriginalStreamData("ab-1", out _));
+					Assert.False(state.TryGetMetastreamData("$$ab-1", out _));
+				})
 				.RunAsync(x => new[] {
 						x.Recs[0].KeepIndexes(), // tombstone has gone
 						x.Recs[1],
 						x.Recs[2],
 					});
-
-			Assert.False(state.TryGetOriginalStreamData("ab-1", out _));
-			Assert.False(state.TryGetMetastreamData("$$ab-1", out _));
 		}
 
 		[Fact]
@@ -88,7 +90,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 			// the normal scavenge with the tombstone
 			var t = 0;
 			var scenario = new Scenario();
-			var (state, db) = await scenario
+			var db = await scenario
 				.WithDbPath(Fixture.Directory)
 				.WithDb(x => x
 					.Chunk(
@@ -98,7 +100,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 					.Chunk(ScavengePointRec(t++)) // SP-0
 					.Chunk(Rec.CommittedDelete(t++, "ab-1"))
 					.Chunk(ScavengePointRec(t++))) // SP-1
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
 				.MutateState(x => {
 					// make it scavenge SP-0
 					x.SetCheckpoint(new ScavengeCheckpoint.Accumulating(
@@ -119,24 +121,25 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 				});
 
 			// the second scavenge with unsafeharddeletes
-			(state, db) = await new Scenario()
+			await new Scenario()
 				.WithTracerFrom(scenario)
 				.WithDbPath(Fixture.Directory)
 				.WithDb(db)
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
 				.WithUnsafeIgnoreHardDeletes()
 				.AssertTrace(
 					Tracer.Line("Accumulating from SP-0 to SP-1"),
 					Tracer.AnythingElse)
+				.AssertState(state => {
+					Assert.False(state.TryGetOriginalStreamData("ab-1", out _));
+					Assert.False(state.TryGetMetastreamData("$$ab-1", out _));
+				})
 				.RunAsync(x => new[] {
 					x.Recs[0].KeepIndexes(), // metadata record has gone
 					x.Recs[1],
 					x.Recs[2].KeepIndexes(), // tombstone has gone
 					x.Recs[3],
 				});
-
-			Assert.False(state.TryGetOriginalStreamData("ab-1", out _));
-			Assert.False(state.TryGetMetastreamData("$$ab-1", out _));
 		}
 	}
 }

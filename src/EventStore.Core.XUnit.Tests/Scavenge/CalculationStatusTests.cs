@@ -17,7 +17,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 			bool isTombstoned) {
 
 			var t = 0;
-			var (state, db) = await new Scenario()
+			await new Scenario()
 				.WithDbPath(Fixture.Directory)
 				.WithDb(x => x
 					.Chunk(Rec.Write(t++, "$$ab-1", "$metadata", metadata: metadata))
@@ -29,17 +29,19 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						? Rec.CommittedDelete(t++, "ab-1")
 						: Rec.Write(t++, "cd-2"))
 					.Chunk(ScavengePointRec(t++)))
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
+				.AssertState(state => {
+					if (expected == CalculationStatus.Spent) {
+						// it should be deleted
+						Assert.False(state.TryGetOriginalStreamData("ab-1", out _));
+					} else {
+						// it should be present with the expected status
+						Assert.True(state.TryGetOriginalStreamData("ab-1", out var data));
+						Assert.Equal(expected, data.Status);
+					}
+				})
 				.RunAsync();
 
-			if (expected == CalculationStatus.Spent) {
-				// it should be deleted
-				Assert.False(state.TryGetOriginalStreamData("ab-1", out _));
-			} else {
-				// it should be present with the expected status
-				Assert.True(state.TryGetOriginalStreamData("ab-1", out var data));
-				Assert.Equal(expected, data.Status);
-			}
 		}
 
 		[Fact]

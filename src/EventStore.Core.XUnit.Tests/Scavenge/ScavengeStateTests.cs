@@ -17,7 +17,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 			var hasher = new HumanReadableHasher();
 			var metastreamLookup = new LogV2SystemStreams();
 			var sut = new ScavengeStateBuilder(hasher, metastreamLookup)
-				.WithConnection(Fixture.DbConnection)
+				.WithConnectionPool(Fixture.DbConnectionPool)
 				.Build();
 
 			var trans = sut.BeginTransaction();
@@ -32,6 +32,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 			trans.Commit(new ScavengeCheckpoint.Accumulating(
 				new ScavengePoint(default, default, default, default),
 				20));
+			sut.Dispose();
 		}
 
 		[Fact]
@@ -39,7 +40,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 			var hasher = new HumanReadableHasher();
 			var metastreamLookup = new LogV2SystemStreams();
 			var sut = new ScavengeStateBuilder(hasher, metastreamLookup)
-				.WithConnection(Fixture.DbConnection)
+				.WithConnectionPool(Fixture.DbConnectionPool)
 				.Build();
 
 			sut.IncreaseChunkWeight(5, 20);
@@ -64,6 +65,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 			Assert.False(sut.TryGetMetastreamData("$$ab-2", out _));
 			sut.DetectCollisions("$$cd-3");
 			Assert.False(sut.TryGetMetastreamData("$$cd-3", out _));
+			sut.Dispose();
 		}
 
 		[Fact]
@@ -74,7 +76,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 
 			var metastreamLookup = new LogV2SystemStreams();
 			var sut = new ScavengeStateBuilder(hasher, metastreamLookup)
-				.WithConnection(Fixture.DbConnection)
+				.WithConnectionPool(Fixture.DbConnectionPool)
 				.Build();
 
 			var numStreams = 100;
@@ -112,6 +114,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 
 			// processedd each stream exactly once
 			Assert.Equal(numStreams, processed);
+			sut.Dispose();
 		}
 
 		[Fact]
@@ -122,7 +125,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 
 			var metastreamLookup = new LogV2SystemStreams();
 			var sut = new ScavengeStateBuilder(hasher, metastreamLookup)
-				.WithConnection(Fixture.DbConnection)
+				.WithConnectionPool(Fixture.DbConnectionPool)
 				.Build();
 
 			var numStreams = 100;
@@ -172,6 +175,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 
 			// processedd each stream exactly once
 			Assert.Equal(numStreams, processed);
+			sut.Dispose();
 		}
 	}
 }

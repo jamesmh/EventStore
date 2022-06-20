@@ -23,9 +23,8 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 		}
 
 		public IChunkReaderForExecutor<TStreamId, TRecord> GetChunkReaderFor(long position) {
-			var ret = _wrapped.GetChunkReaderFor(position);
-			_tracer.Trace($"Opening Chunk {ret.ChunkStartNumber}-{ret.ChunkEndNumber}");
-			return ret;
+			var reader = _wrapped.GetChunkReaderFor(position);
+			return new TrackingChunkReaderForExecutor<TStreamId, TRecord>(reader, _tracer);
 		}
 	}
 }

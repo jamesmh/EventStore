@@ -17,8 +17,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 			// the scavenge point operates as if it were in the middle of events supposed to bewritten
 			// transactionally.
 			var t = 0;
-			var scenario = new Scenario();
-			var (state, db) = await scenario
+			await new Scenario()
 				.WithDbPath(Fixture.Directory)
 				.WithDb(x => x
 					.Chunk(
@@ -34,7 +33,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 					.Chunk(
 						Rec.Write(t++, "$$ab-1", "$metadata", metadata: TruncateBefore3),
 						ScavengePointRec(t++)))
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
 				.RunAsync(
 					x => new[] {
 						x.Recs[0].KeepIndexes(4),
@@ -45,7 +44,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 		[Fact]
 		public async Task simple_soft_delete() {
 			var t = 0;
-			var (state, db) = await new Scenario()
+			await new Scenario()
 				.WithDbPath(Fixture.Directory)
 				.WithDb(x => x
 					.Chunk(
@@ -54,21 +53,22 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						Rec.Write(t++, "ab-1"),
 						Rec.Write(t++, "$$ab-1", "$metadata", metadata: SoftDelete))
 					.Chunk(ScavengePointRec(t++)))
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
+				.AssertState(state => {
+					Assert.False(state.TryGetOriginalStreamData("ab-1", out _));
+					Assert.False(state.TryGetMetastreamData("$$ab-1", out _));
+				})
 				.RunAsync(
 					x => new[] {
 						x.Recs[0].KeepIndexes(2, 3), // keep the last event
 						x.Recs[1],
 					});
-
-			Assert.False(state.TryGetOriginalStreamData("ab-1", out _));
-			Assert.False(state.TryGetMetastreamData("$$ab-1", out _));
 		}
 
 		[Fact]
 		public async Task soft_delete_and_recreate() {
 			var t = 0;
-			var (state, db) = await new Scenario()
+			await new Scenario()
 				.WithDbPath(Fixture.Directory)
 				.WithDb(x => x
 					.Chunk(
@@ -79,7 +79,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						Rec.Write(t++, "ab-1"),
 						Rec.Write(t++, "$$ab-1", "$metadata", metadata: TruncateBefore3))
 					.Chunk(ScavengePointRec(t++)))
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
 				.RunAsync(
 					x => new[] {
 						x.Recs[0].KeepIndexes(4, 5),
@@ -93,7 +93,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 
 			// SP-0 scavenge
 			var scenario = new Scenario();
-			var (state, db) = await scenario
+			var db = await scenario
 				.WithDbPath(Fixture.Directory)
 				.WithDb(x => x
 					.Chunk(
@@ -109,7 +109,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						Rec.Write(t++, "ab-1"),
 						Rec.Write(t++, "$$ab-1", "$metadata", metadata: TruncateBefore3))
 					.Chunk(ScavengePointRec(t++))) // SP-1
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
 				.MutateState(x => {
 					// make it scavenge SP-0
 					x.SetCheckpoint(new ScavengeCheckpoint.Accumulating(
@@ -121,6 +121,10 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 				.AssertTrace(
 					Tracer.Line("Accumulating from checkpoint: Accumulating SP-0 done None"),
 					Tracer.AnythingElse)
+				.AssertState(state => {
+					Assert.False(state.TryGetOriginalStreamData("ab-1", out _));
+					Assert.False(state.TryGetMetastreamData("$$ab-1", out _));
+				})
 				.RunAsync(
 					x => new[] {
 						x.Recs[0].KeepIndexes(2, 3),
@@ -129,15 +133,12 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						x.Recs[3],
 					});
 
-			Assert.False(state.TryGetOriginalStreamData("ab-1", out _));
-			Assert.False(state.TryGetMetastreamData("$$ab-1", out _));
-
 			// SP-1 scavenge
-			(state, db) = await new Scenario()
+			await new Scenario()
 				.WithTracerFrom(scenario)
 				.WithDbPath(Fixture.Directory)
 				.WithDb(db)
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
 				.AssertTrace(
 					Tracer.Line("Accumulating from SP-0 to SP-1"),
 					Tracer.AnythingElse)
@@ -152,7 +153,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 		[Fact]
 		public async Task can_soft_delete_recreate_and_hard_delete() {
 			var t = 0;
-			var (state, db) = await new Scenario()
+			await new Scenario()
 				.WithDbPath(Fixture.Directory)
 				.WithDb(x => x
 					.Chunk(
@@ -167,7 +168,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						// hard delete
 						Rec.CommittedDelete(t++, "ab-1"))
 					.Chunk(ScavengePointRec(t++)))
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
 				.RunAsync(
 					x => new[] {
 						x.Recs[0].KeepIndexes(6),
@@ -179,7 +180,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 		public async Task can_soft_delete_and_hard_delete() {
 			// this might not actually be supported by the database
 			var t = 0;
-			var (state, db) = await new Scenario()
+			await new Scenario()
 				.WithDbPath(Fixture.Directory)
 				.WithDb(x => x
 					.Chunk(
@@ -191,7 +192,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						// hard delete
 						Rec.CommittedDelete(t++, "ab-1"))
 					.Chunk(ScavengePointRec(t++)))
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
 				.RunAsync(
 					x => new[] {
 						x.Recs[0].KeepIndexes(4),

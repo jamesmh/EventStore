@@ -23,7 +23,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						Rec.Write(t++, "ab-1"), // keep
 						Rec.Write(t++, "$$ab-1", "$metadata", metadata: MaxCount1)) // keep
 					.Chunk(ScavengePointRec(t++)))
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
 				.RunAsync(
 					x => new LogRecord[][] {
 						// chunk 0 and chunk 1 are the same chunk now
@@ -58,7 +58,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						Rec.Write(t++, "ab-1"),
 						Rec.Write(t++, "$$ab-1", "$metadata", metadata: MaxCount1))
 					.Chunk(ScavengePointRec(t++)))
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
 				.RunAsync(x => new[] {
 					// chunks not merged
 					x.Recs[0].KeepIndexes(1),

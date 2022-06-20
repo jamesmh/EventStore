@@ -25,6 +25,10 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 			_onRollback = onRollback;
 		}
 
+		public void UnregisterOnRollback() {
+			_onRollback = null;
+		}
+
 		public void Begin() {
 			if (_began)
 				throw new InvalidOperationException("Cannot begin a transaction that has already begun.");

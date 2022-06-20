@@ -26,7 +26,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						Rec.Write(t++, "$$ab-1", "$metadata", metadata: MaxCount1),
 						ScavengePointRec(t++, threshold: threshold))
 					.CompleteLastChunk())
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
 				.AssertTrace(
 					Tracer.Line("Accumulating from start to SP-0"),
 					Tracer.Line("    Begin"),
@@ -61,20 +61,20 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 					Tracer.Line("        Checkpoint: Executing chunks for SP-0 done None"),
 					Tracer.Line("    Commit"),
 					Tracer.Line("    Opening Chunk 0-0"),
+					Tracer.Line("    Switched in chunk-000000.000001"), // executed
 					Tracer.Line("    Begin"),
-					Tracer.Line("        Switched in chunk-000000.000001"), // executed
 					Tracer.Line("        Checkpoint: Executing chunks for SP-0 done Chunk 0"),
 					Tracer.Line("    Commit"),
 
 					Tracer.Line("    Opening Chunk 1-1"),
+					Tracer.Line("    Switched in chunk-000001.000001"), // executed
 					Tracer.Line("    Begin"),
-					Tracer.Line("        Switched in chunk-000001.000001"), // executed
 					Tracer.Line("        Checkpoint: Executing chunks for SP-0 done Chunk 1"),
 					Tracer.Line("    Commit"),
 
 					Tracer.Line("    Opening Chunk 2-2"),
+					Tracer.Line("    Switched in chunk-000002.000001"), // executed
 					Tracer.Line("    Begin"),
-					Tracer.Line("        Switched in chunk-000002.000001"), // executed
 					Tracer.Line("        Checkpoint: Executing chunks for SP-0 done Chunk 2"),
 					Tracer.Line("    Commit"),
 					Tracer.Line("Done"),
@@ -113,7 +113,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						Rec.Write(t++, "$$ab-1", "$metadata", metadata: MaxCount1),
 						ScavengePointRec(t++, threshold: threshold))
 					.CompleteLastChunk())
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
 				.AssertTrace(
 					Tracer.Line("Accumulating from start to SP-0"),
 					Tracer.Line("    Begin"),
@@ -148,20 +148,19 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 					Tracer.Line("        Checkpoint: Executing chunks for SP-0 done None"),
 					Tracer.Line("    Commit"),
 					Tracer.Line("    Opening Chunk 0-0"),
+					Tracer.Line("    Switched in chunk-000000.000001"), // executed
 					Tracer.Line("    Begin"),
-					Tracer.Line("        Switched in chunk-000000.000001"), // executed
 					Tracer.Line("        Checkpoint: Executing chunks for SP-0 done Chunk 0"),
 					Tracer.Line("    Commit"),
 
 					Tracer.Line("    Opening Chunk 1-1"),
+					Tracer.Line("    Switched in chunk-000001.000001"), // executed
 					Tracer.Line("    Begin"),
-					Tracer.Line("        Switched in chunk-000001.000001"), // executed
 					Tracer.Line("        Checkpoint: Executing chunks for SP-0 done Chunk 1"),
 					Tracer.Line("    Commit"),
 
-					Tracer.Line("    Opening Chunk 2-2"),
+					//               no opening or switch, not executed.
 					Tracer.Line("    Begin"),
-					//                   no switch, not executed.
 					Tracer.Line("        Checkpoint: Executing chunks for SP-0 done Chunk 2"),
 					Tracer.Line("    Commit"),
 					Tracer.Line("Done"),
@@ -200,7 +199,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						Rec.Write(t++, "$$ab-1", "$metadata", metadata: MaxCount1),
 						ScavengePointRec(t++, threshold: threshold))
 					.CompleteLastChunk())
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
 				.RunAsync(
 					x => new[] {
 						x.Recs[0], // not executed so still has its records

@@ -24,8 +24,11 @@ using static EventStore.Core.XUnit.Tests.Scavenge.StreamMetadatas;
 
 namespace EventStore.Core.XUnit.Tests.Scavenge {
 	public class Scenario {
+		private const int Threads = 1;
+
 		private Func<TFChunkDbConfig, DbResult> _getDb;
 		private Func<ScavengeStateBuilder, ScavengeStateBuilder> _stateTransform;
+		private Action<ScavengeState<string>> _assertState;
 		private List<ScavengePoint> _newScavengePoint;
 		private ITFChunkScavengerLog _logger;
 
@@ -88,6 +91,11 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 			return this;
 		}
 
+		public Scenario AssertState(Action<ScavengeState<string>> f) {
+			_assertState = f;
+			return this;
+		}
+
 		public Scenario MutateState(Action<ScavengeState<string>> f) {
 			var wrapped = _stateTransform;
 			_stateTransform = builder => builder
@@ -142,7 +150,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 			return this;
 		}
 
-		public async Task<(ScavengeState<string>, DbResult)> RunAsync(
+		public async Task<DbResult> RunAsync(
 			Func<DbResult, LogRecord[][]> getExpectedKeptRecords = null,
 			Func<DbResult, LogRecord[][]> getExpectedKeptIndexEntries = null) {
 
@@ -153,7 +161,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 
 		//qqq make sure the directory gets cleaned up
 		// simialarities with ScavengeTestScenario
-		private async Task<(ScavengeState<string>, DbResult)> RunInternalAsync(
+		private async Task<DbResult> RunInternalAsync(
 			Func<DbResult, LogRecord[][]> getExpectedKeptRecords,
 			Func<DbResult, LogRecord[][]> getExpectedKeptIndexEntries) {
 
@@ -226,6 +234,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 
 			readIndex.Init(dbResult.Db.Config.WriterCheckpoint.Read());
 
+			ScavengeState<string> scavengeState = null;
 			try {
 				var cancellationTokenSource = new CancellationTokenSource();
 				var metastreamLookup = new LogV2SystemStreams();
@@ -315,6 +324,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 					chunkSize: dbConfig.ChunkSize,
 					unsafeIgnoreHardDeletes: _unsafeIgnoreHardDeletes,
 					cancellationCheckPeriod: cancellationCheckPeriod,
+					threads: Threads,
 					throttle: throttle);
 
 				IChunkMerger chunkMerger = new ChunkMerger(
@@ -338,11 +348,15 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 				indexExecutor = new TracingIndexExecutor<string>(indexExecutor, Tracer);
 				cleaner = new TracingCleaner(cleaner, Tracer);
 
-				var scavengeState = new ScavengeStateBuilder(hasher, metastreamLookup)
+				scavengeState = new ScavengeStateBuilder(hasher, metastreamLookup)
 					.TransformBuilder(_stateTransform)
 					.CancelWhenCheckpointing(_cancelWhenCheckpointingType, cancellationTokenSource)
 					.WithTracer(Tracer)
 					.Build();
+
+				// if test provided its own logger it can check its own status
+				var expectSuccess = _logger == null;
+				var successLogger = expectSuccess ? new FakeTFScavengerLog() : null;
 
 				var sut = new Scavenger<string>(
 					scavengeState,
@@ -356,19 +370,25 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						dbResult,
 						EffectiveNow,
 						_newScavengePoint ?? new List<ScavengePoint>()),
-					_logger ?? new FakeTFScavengerLog(),
+					_logger ?? successLogger,
 					thresholdForNewScavenge: 0,
-					() => "dummy stats",
 					throttle.PrettyPrint);
 
 				Tracer.Reset();
 				await sut.ScavengeAsync(cancellationTokenSource.Token);
 
-				// check the trace
-				if (_expectedTrace != null) {
+				// check if successful
+				if (_logger == null) {
+					Assert.True(successLogger.Completed);
+					Assert.True(
+						successLogger.Result == Core.TransactionLog.Chunks.ScavengeResult.Success,
+						$"Status: {successLogger.Result}. Error: {successLogger.Error}");
+				}
+
+				// check the trace. only when Threads == 1 or the order isn't guaranteed.
+				if (_expectedTrace != null && Threads == 1) {
 					var expected = _expectedTrace;
 					var actual = Tracer.ToArray();
-
 					for (var i = 0; i < Math.Max(expected.Length, actual.Length); i++) {
 
 						if (expected[i] == Tracer.AnythingElse) {
@@ -457,9 +477,14 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 					CheckRecords(keptRecords, dbResult);
 					CheckIndex(keptIndexEntries, readIndex, collisions, hasher);
 				}
-				return (scavengeState, dbResult);
+
+				if (_assertState != null)
+					_assertState(scavengeState);
+
+				return dbResult;
 
 			} finally {
+				scavengeState?.Dispose();
 				readIndex.Close();
 				dbResult.Db.Close();
 			}

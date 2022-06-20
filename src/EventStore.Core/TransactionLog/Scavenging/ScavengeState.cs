@@ -4,6 +4,8 @@ using EventStore.Core.Index.Hashes;
 using EventStore.Core.LogAbstraction;
 using EventStore.Core.Data;
 using EventStore.Common.Log;
+using EventStore.Core.DataStructures;
+using System.Linq;
 
 namespace EventStore.Core.TransactionLog.Scavenging {
 	// This datastructure is read and written to by the Accumulator/Calculator/Executors.
@@ -18,6 +20,8 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 	}
 
 	public class ScavengeState<TStreamId> : ScavengeState, IScavengeState<TStreamId> {
+		private readonly IScavengeStateBackend<TStreamId> _backend;
+		private readonly ObjectPool<IScavengeStateBackend<TStreamId>> _backendPool;
 
 		private readonly CollisionDetector<TStreamId> _collisionDetector;
 
@@ -38,52 +42,58 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 		public ScavengeState(
 			ILongHasher<TStreamId> hasher,
 			IMetastreamLookup<TStreamId> metastreamLookup,
-			IScavengeMap<TStreamId, Unit> collisionStorage,
-			IScavengeMap<ulong, TStreamId> hashes,
-			IMetastreamScavengeMap<ulong> metaStorage,
-			IMetastreamScavengeMap<TStreamId> metaCollisionStorage,
-			IOriginalStreamScavengeMap<ulong> originalStorage,
-			IOriginalStreamScavengeMap<TStreamId> originalCollisionStorage,
-			IScavengeMap<Unit, ScavengeCheckpoint> checkpointStorage,
-			IScavengeMap<int, ChunkTimeStampRange> chunkTimeStampRanges,
-			IChunkWeightScavengeMap chunkWeights,
-			ITransactionManager transactionManager) {
+			ObjectPool<IScavengeStateBackend<TStreamId>> backendPool) {
+
+			_backendPool = backendPool;
+			_backend = _backendPool.Get();
 
 			// todo: in log v3 inject an implementation that doesn't store hash users
 			// since there are no collisions.
 			_collisionDetector = new CollisionDetector<TStreamId>(
-				// todo: configurable cacheMaxCount
-				hashUsers: new LruCachingScavengeMap<ulong, TStreamId>(hashes, cacheMaxCount: 100_000),
-				collisionStorage: collisionStorage,
+				//qq configurable cacheMaxCount
+				hashUsers: new LruCachingScavengeMap<ulong, TStreamId>(
+					_backend.Hashes,
+					cacheMaxCount: 100_000),
+				collisionStorage: _backend.CollisionStorage,
 				hasher: hasher);
 
 			_hasher = hasher;
 			_metastreamLookup = metastreamLookup;
-			_checkpointStorage = checkpointStorage;
+			_checkpointStorage = _backend.CheckpointStorage;
 
 			_metastreamDatas = new MetastreamCollisionMap<TStreamId>(
 				_hasher,
 				_collisionDetector.IsCollision,
-				metaStorage,
-				metaCollisionStorage);
+				_backend.MetaStorage,
+				_backend.MetaCollisionStorage);
 
 			_originalStreamDatas = new OriginalStreamCollisionMap<TStreamId>(
 				_hasher,
 				_collisionDetector.IsCollision,
-				originalStorage,
-				originalCollisionStorage);
+				_backend.OriginalStorage,
+				_backend.OriginalCollisionStorage);
 
-			_chunkTimeStampRanges = chunkTimeStampRanges;
-			_chunkWeights = chunkWeights;
+			_chunkTimeStampRanges = _backend.ChunkTimeStampRanges;
+			_chunkWeights = _backend.ChunkWeights;
 
-			_transactionManager = transactionManager;
+			_transactionManager = _backend.TransactionManager;
 			_transactionManager.RegisterOnRollback(OnRollback);
+		}
+
+		public void Dispose() {
+			_transactionManager.UnregisterOnRollback();
+			_backendPool.Return(_backend);
+			_backendPool.Dispose();
 		}
 
 		private void OnRollback() {
 			// a transaction has been rolled back, clear whatever cached data we have
 			_collisionDetector.ClearCaches();
 			//qq others? the lrucache?
+		}
+
+		public void LogStats() {
+			_backend.LogStats();
 		}
 
 		// reuses the same transaction object for multiple transactions.
@@ -181,6 +191,18 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 		// FOR CHUNK EXECUTOR
 		//
 
+		// not guaranteed to be thread safe. allocations and queries, dont call this too often.
+		public IScavengeStateForChunkExecutorWorker<TStreamId> BorrowStateForWorker() {
+			var backend = _backendPool.Get();
+
+			var state = new ScavengeStateForChunkWorker<TStreamId>(
+				hasher: _hasher,
+				backend: backend,
+				collisions: AllCollisions().ToDictionary(x => x, x => Unit.Instance),
+				onDispose: () => _backendPool.Return(backend));
+			return state;
+		}
+
 		public float SumChunkWeights(int startLogicalChunkNumber, int endLogicalChunkNumber) =>
 			_chunkWeights.SumChunkWeights(startLogicalChunkNumber, endLogicalChunkNumber);
 
@@ -193,7 +215,6 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 			out ChunkExecutionInfo info) =>
 
 			_originalStreamDatas.TryGetChunkExecutionInfo(streamId, out info);
-
 
 		public bool TryGetMetastreamData(TStreamId streamId, out MetastreamData data) =>
 			_metastreamDatas.TryGetValue(streamId, out data);
@@ -274,6 +295,58 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 
 		public void DeleteMetastreamData() {
 			_metastreamDatas.DeleteAll();
+		}
+	}
+
+
+	// in the chunk executor each worker gets its own state so that it has its own dbconnection and
+	// prepared commands.
+	public struct ScavengeStateForChunkWorker<TStreamId> : 
+		IScavengeStateForChunkExecutorWorker<TStreamId>{
+
+		private readonly MetastreamCollisionMap<TStreamId> _metastreamDatas;
+		private readonly OriginalStreamCollisionMap<TStreamId> _originalStreamDatas;
+		private readonly IChunkWeightScavengeMap _chunkWeights;
+		private readonly Action _onDispose;
+
+		public ScavengeStateForChunkWorker(
+			ILongHasher<TStreamId> hasher,
+			IScavengeStateBackend<TStreamId> backend,
+			Dictionary<TStreamId, Unit> collisions,
+			Action onDispose) {
+
+			_metastreamDatas = new MetastreamCollisionMap<TStreamId>(
+				hasher,
+				collisions.ContainsKey,
+				backend.MetaStorage,
+				backend.MetaCollisionStorage);
+
+			_originalStreamDatas = new OriginalStreamCollisionMap<TStreamId>(
+				hasher,
+				collisions.ContainsKey,
+				backend.OriginalStorage,
+				backend.OriginalCollisionStorage);
+
+			_chunkWeights = backend.ChunkWeights;
+
+			_onDispose = onDispose;
+		}
+
+		public float SumChunkWeights(int startLogicalChunkNumber, int endLogicalChunkNumber) =>
+			_chunkWeights.SumChunkWeights(startLogicalChunkNumber, endLogicalChunkNumber);
+
+		public void ResetChunkWeights(int startLogicalChunkNumber, int endLogicalChunkNumber) {
+			_chunkWeights.ResetChunkWeights(startLogicalChunkNumber, endLogicalChunkNumber);
+		}
+
+		public bool TryGetChunkExecutionInfo(TStreamId streamId, out ChunkExecutionInfo info) =>
+			_originalStreamDatas.TryGetChunkExecutionInfo(streamId, out info);
+
+		public bool TryGetMetastreamData(TStreamId streamId, out MetastreamData data) =>
+			_metastreamDatas.TryGetValue(streamId, out data);
+
+		public void Dispose() {
+			_onDispose();
 		}
 	}
 }

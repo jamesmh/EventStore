@@ -1,8 +1,14 @@
 ﻿using System;
+using EventStore.Common.Log;
 using Microsoft.Data.Sqlite;
 
 namespace EventStore.Core.TransactionLog.Scavenging.Sqlite {
-	public class SqliteScavengeBackend<TStreamId> {
+	public class SqliteScavengeBackend {
+		protected static readonly ILogger Log = LogManager.GetLoggerFor<SqliteScavengeBackend>();
+	}
+
+	// Encapsulates a connection to sqlite, complete with prepared statements and an API to access it
+	public class SqliteScavengeBackend<TStreamId> : SqliteScavengeBackend, IScavengeStateBackend<TStreamId> {
 		// WAL with SYNCHRONOUS NORMAL means that
 		//  - commiting a transaction does not wait to it to flush to disk
 		//  - which is nice and quick, but means in powerloss the last x transactions
@@ -28,9 +34,14 @@ namespace EventStore.Core.TransactionLog.Scavenging.Sqlite {
 		public IScavengeMap<int,ChunkTimeStampRange> ChunkTimeStampRanges { get; private set; }
 		public IChunkWeightScavengeMap ChunkWeights { get; private set; }
 		public ITransactionFactory<SqliteTransaction> TransactionFactory { get; private set; }
+		public ITransactionManager TransactionManager { get; private set; }
 
 		public SqliteScavengeBackend(int cacheSizeInBytes = DefaultSqliteCacheSize) {
 			_cacheSizeInBytes = Math.Abs(cacheSizeInBytes);
+		}
+
+		public void Dispose() {
+			_sqliteBackend.Dispose();
 		}
 
 		public void Initialize(SqliteConnection connection) {
@@ -68,6 +79,8 @@ namespace EventStore.Core.TransactionLog.Scavenging.Sqlite {
 
 			var transactionFactory = new SqliteTransactionFactory();
 			TransactionFactory = transactionFactory;
+
+			TransactionManager = new SqliteTransactionManager(TransactionFactory, CheckpointStorage);
 
 			var allMaps = new IInitializeSqliteBackend[] { collisionStorage, hashes, metaStorage, metaCollisionStorage,
 				originalStorage, originalCollisionStorage, checkpointStorage, chunkTimeStampRanges, chunkWeights,
@@ -134,6 +147,10 @@ namespace EventStore.Core.TransactionLog.Scavenging.Sqlite {
 
 		public SqliteBackend.Stats GetStats() {
 			return _sqliteBackend.GetStats();
+		}
+
+		public void LogStats() {
+			Log.Trace($"SCAVENGING: {GetStats().PrettyPrint()}");
 		}
 	}
 }

@@ -10,7 +10,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 		[Fact]
 		public async Task simple() {
 			var t = 0;
-			var (state, db) = await new Scenario()
+			await new Scenario()
 				.WithDbPath(Fixture.Directory)
 				.WithDb(x => x
 					.Chunk(
@@ -20,17 +20,18 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						Rec.Write(t++, "ab-1"))
 					.Chunk(
 						ScavengePointRec(t++, threshold: 1000)))
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
+				.AssertState(state => {
+					Assert.Equal(4, state.SumChunkWeights(0, 0));
+					Assert.Equal(0, state.SumChunkWeights(1, 1));
+				})
 				.RunAsync();
-
-			Assert.Equal(4, state.SumChunkWeights(0, 0));
-			Assert.Equal(0, state.SumChunkWeights(1, 1));
 		}
 
 		[Fact]
 		public async Task max_age_maybe_discard() {
 			var t = 0;
-			var (state, db) = await new Scenario()
+			await new Scenario()
 				.WithDbPath(Fixture.Directory)
 				.WithDb(x => x
 					.Chunk(
@@ -41,20 +42,21 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						Rec.Write(t++, "$$ab-1", "$metadata", metadata: MaxAgeMetadata))
 					.Chunk(
 						ScavengePointRec(t++, threshold: 1000)))
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
+				.AssertState(state => {
+					Assert.Equal(3, state.SumChunkWeights(0, 0));
+					Assert.Equal(0, state.SumChunkWeights(1, 1));
+					Assert.True(state.TryGetOriginalStreamData("ab-1", out var data));
+					Assert.Equal(DiscardPoint.DiscardBefore(0), data.DiscardPoint);
+					Assert.Equal(DiscardPoint.DiscardBefore(3), data.MaybeDiscardPoint);
+				})
 				.RunAsync();
-
-			Assert.Equal(3, state.SumChunkWeights(0, 0));
-			Assert.Equal(0, state.SumChunkWeights(1, 1));
-			Assert.True(state.TryGetOriginalStreamData("ab-1", out var data));
-			Assert.Equal(DiscardPoint.DiscardBefore(0), data.DiscardPoint);
-			Assert.Equal(DiscardPoint.DiscardBefore(3), data.MaybeDiscardPoint);
 		}
 
 		[Fact]
 		public async Task metadata_replaced_by_metadata() {
 			var t = 0;
-			var (state, db) = await new Scenario()
+			await new Scenario()
 				.WithDbPath(Fixture.Directory)
 				.WithDb(x => x
 					.Chunk(
@@ -62,17 +64,18 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 					.Chunk(
 						Rec.Write(t++, "$$ab-1", "$metadata", metadata: MaxCount1),
 						ScavengePointRec(t++, threshold: 1000)))
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
+				.AssertState(state => {
+					Assert.Equal(2, state.SumChunkWeights(0, 0));
+					Assert.Equal(0, state.SumChunkWeights(1, 1));
+				})
 				.RunAsync();
-
-			Assert.Equal(2, state.SumChunkWeights(0, 0));
-			Assert.Equal(0, state.SumChunkWeights(1, 1));
 		}
 
 		[Fact]
 		public async Task metadata_replaced_by_tombstone() {
 			var t = 0;
-			var (state, db) = await new Scenario()
+			await new Scenario()
 				.WithDbPath(Fixture.Directory)
 				.WithDb(x => x
 					.Chunk(
@@ -80,17 +83,18 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 					.Chunk(
 						Rec.CommittedDelete(t++, "ab-1"),
 						ScavengePointRec(t++, threshold: 1000)))
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
+				.AssertState(state => {
+					Assert.Equal(2, state.SumChunkWeights(0, 0));
+					Assert.Equal(0, state.SumChunkWeights(1, 1));
+				})
 				.RunAsync();
-
-			Assert.Equal(2, state.SumChunkWeights(0, 0));
-			Assert.Equal(0, state.SumChunkWeights(1, 1));
 		}
 
 		[Fact]
 		public async Task metadata_replaced_multiple_times() {
 			var t = 0;
-			var (state, db) = await new Scenario()
+			await new Scenario()
 				.WithDbPath(Fixture.Directory)
 				.WithDb(x => x
 					.Chunk(
@@ -102,12 +106,13 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						Rec.Write(t++, "$$ab-1", "$metadata", metadata: MaxCount1), // weight: 2
 						Rec.CommittedDelete(t++, "ab-1"),
 						ScavengePointRec(t++, threshold: 1000)))
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
+				.AssertState(state => {
+					Assert.Equal(2, state.SumChunkWeights(0, 0));
+					Assert.Equal(4, state.SumChunkWeights(1, 1));
+					Assert.Equal(2, state.SumChunkWeights(2, 2));
+				})
 				.RunAsync();
-
-			Assert.Equal(2, state.SumChunkWeights(0, 0));
-			Assert.Equal(4, state.SumChunkWeights(1, 1));
-			Assert.Equal(2, state.SumChunkWeights(2, 2));
 		}
 	}
 }

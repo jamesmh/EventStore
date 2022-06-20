@@ -38,7 +38,6 @@ using EventStore.Core.Services.PersistentSubscription.ConsumerStrategy;
 using System.Threading.Tasks;
 using EventStore.Core.TransactionLog.Scavenging;
 using EventStore.Core.LogV2;
-using EventStore.Core.TransactionLog.Chunks.TFChunk;
 using EventStore.Core.TransactionLog.Scavenging.Sqlite;
 using EventStore.Core.TransactionLog.LogRecords;
 using Microsoft.Data.Sqlite;
@@ -560,19 +559,6 @@ namespace EventStore.Core {
 				var scavengeDirectory = Path.Combine(indexPath, "scavenging");
 				Directory.CreateDirectory(scavengeDirectory);
 
-				// each scavenge we reuse the same sqlite backend
-				var lazyBackend = new Lazy<SqliteScavengeBackend<string>>(() => {
-					var connectionStringBuilder = new SqliteConnectionStringBuilder {
-						DataSource = Path.Combine(scavengeDirectory, "scavenging.db")
-					};
-					var connection = new SqliteConnection(connectionStringBuilder.ConnectionString);
-					connection.Open();
-					var sqlite = new SqliteScavengeBackend<string>(
-						cacheSizeInBytes: vNodeSettings.ScavengeBackendCacheSize);
-					sqlite.Initialize(connection);
-					return sqlite;
-				});
-
 				scavengerFactory = new NewScavengerFactory((message, logger) => {
 					var throttle = new Throttle(
 						TimeSpan.FromMilliseconds(1000),
@@ -611,6 +597,7 @@ namespace EventStore.Core {
 						chunkSize: db.Config.ChunkSize,
 						unsafeIgnoreHardDeletes: vNodeSettings.UnsafeIgnoreHardDeletes,
 						cancellationCheckPeriod: cancellationCheckPeriod,
+						threads: message.Threads,
 						throttle: throttle);
 
 					var chunkMerger = new ChunkMerger(
@@ -631,22 +618,30 @@ namespace EventStore.Core {
 
 					var scavengePointSource = new ScavengePointSource(ioDispatcher);
 
-					var sqlite = lazyBackend.Value;
+					// the backends (and therefore connections) are scoped to the run of the scavenge
+					// so that we don't keep hold of memory used for the page caches between scavenges
+					//qq check this is true
+					var backendPool = new ObjectPool<IScavengeStateBackend<string>>(
+						objectPoolName: "scavenge backend pool",
+						initialCount: 1,
+						maxCount: TFChunkScavenger.MaxThreadCount + 1,
+						factory: () => {
+							var connectionStringBuilder = new SqliteConnectionStringBuilder {
+								DataSource = Path.Combine(scavengeDirectory, "scavenging.db")
+							};
+							var connection = new SqliteConnection(connectionStringBuilder.ConnectionString);
+							connection.Open();
+							var sqlite = new SqliteScavengeBackend<string>(
+								cacheSizeInBytes: vNodeSettings.ScavengeBackendCacheSize);
+							sqlite.Initialize(connection);
+							return sqlite;
+						},
+						dispose: backend => backend.Dispose());
+
 					var state = new ScavengeState<string>(
 						longHasher,
 						metastreamLookup,
-						sqlite.CollisionStorage,
-						sqlite.Hashes,
-						sqlite.MetaStorage,
-						sqlite.MetaCollisionStorage,
-						sqlite.OriginalStorage,
-						sqlite.OriginalCollisionStorage,
-						sqlite.CheckpointStorage,
-						sqlite.ChunkTimeStampRanges,
-						sqlite.ChunkWeights,
-						new SqliteTransactionManager(
-							sqlite.TransactionFactory,
-							sqlite.CheckpointStorage));
+						backendPool);
 
 					return new Scavenger<string>(
 						state: state,
@@ -662,9 +657,7 @@ namespace EventStore.Core {
 						// threshold = 0: execute all chunks with weight greater than 0
 						// threshold > 0: execute all chunks above a certain weight
 						thresholdForNewScavenge: message.Threshold ?? 0,
-						getDbStats: () => sqlite.GetStats().PrettyPrint(),
 						getThrottleStats: () => throttle.PrettyPrint());
-
 				});
 
 			} else {

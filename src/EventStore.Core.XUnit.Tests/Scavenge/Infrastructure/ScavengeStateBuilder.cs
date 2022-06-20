@@ -1,7 +1,10 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Threading;
+using EventStore.Core.DataStructures;
 using EventStore.Core.Index.Hashes;
 using EventStore.Core.LogAbstraction;
+using EventStore.Core.TransactionLog.Chunks;
 using EventStore.Core.TransactionLog.Scavenging;
 using EventStore.Core.TransactionLog.Scavenging.Sqlite;
 using Microsoft.Data.Sqlite;
@@ -12,7 +15,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 		private readonly IMetastreamLookup<string> _metastreamLookup;
 
 		private Tracer _tracer;
-		private SqliteConnection _connection;
+		private ObjectPool<SqliteConnection> _connectionPool;
 		private Type _cancelWhenCheckpointingType;
 		private CancellationTokenSource _cancellationTokenSource;
 		private Action<ScavengeState<string>> _mutateState;
@@ -49,8 +52,8 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 			return this;
 		}
 
-		public ScavengeStateBuilder WithConnection(SqliteConnection connection) {
-			_connection = connection;
+		public ScavengeStateBuilder WithConnectionPool(ObjectPool<SqliteConnection> connectionPool) {
+			_connectionPool = connectionPool;
 			return this;
 		}
 
@@ -61,59 +64,55 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 		}
 
 		private ScavengeState<string> BuildInternal() {
-			if (_connection == null)
-				throw new Exception("call WithConnection");
+			if (_connectionPool == null)
+				throw new Exception("call WithConnectionPool(...)");
 
-			var sqlite = new SqliteScavengeBackend<string>();
-			sqlite.Initialize(_connection);
+			var map = new ConcurrentDictionary<IScavengeStateBackend<string>, SqliteConnection>();
+			ObjectPool<IScavengeStateBackend<string>> backendPool = new ObjectPool<IScavengeStateBackend<string>>(
+				objectPoolName: "scavenge backend pool",
+				initialCount: 1,
+				maxCount: TFChunkScavenger.MaxThreadCount + 1,
+				factory: () => {
+					var connection = _connectionPool.Get();
+					var sqlite = new SqliteScavengeBackend<string>();
+					sqlite.Initialize(connection);
 
-			var collisionStorage = sqlite.CollisionStorage;
-			var hashesStorage = sqlite.Hashes;
-			var metaStorage = sqlite.MetaStorage;
-			var metaCollisionStorage = sqlite.MetaCollisionStorage;
-			var originalStorage = sqlite.OriginalStorage;
-			var originalCollisionStorage = sqlite.OriginalCollisionStorage;
-			var checkpointStorage = sqlite.CheckpointStorage;
-			var chunkTimeStampRangesStorage = sqlite.ChunkTimeStampRanges;
-			var chunkWeightStorage = sqlite.ChunkWeights;
-			var transactionFactory = sqlite.TransactionFactory;
+					var backend = new AdHocScavengeBackendInterceptor<string>(sqlite);
 
-			if (_tracer != null)
-				transactionFactory = new TracingTransactionFactory<SqliteTransaction>(transactionFactory, _tracer);
+					var transactionFactory = sqlite.TransactionFactory;
 
-			ITransactionManager transactionManager = new TransactionManager<SqliteTransaction>(
-				transactionFactory,
-				checkpointStorage);
+					if (_tracer != null)
+						transactionFactory = new TracingTransactionFactory<SqliteTransaction>(transactionFactory, _tracer);
 
-			transactionManager = new AdHocTransactionManager(
-				transactionManager,
-				(continuation, checkpoint) => {
-					if (checkpoint.GetType() == _cancelWhenCheckpointingType) {
-						_cancellationTokenSource.Cancel();
+					ITransactionManager transactionManager = new TransactionManager<SqliteTransaction>(
+						transactionFactory,
+						backend.CheckpointStorage);
+
+					transactionManager = new AdHocTransactionManager(
+						transactionManager,
+						(continuation, checkpoint) => {
+							if (checkpoint.GetType() == _cancelWhenCheckpointingType) {
+								_cancellationTokenSource.Cancel();
+							}
+							continuation(checkpoint);
+						});
+
+					if (_tracer != null) {
+						backend.TransactionManager = new TracingTransactionManager(transactionManager, _tracer);
+						backend.OriginalStorage =
+							new TracingOriginalStreamScavengeMap<ulong>(backend.OriginalStorage, _tracer);
+						backend.OriginalCollisionStorage =
+							new TracingOriginalStreamScavengeMap<string>(backend.OriginalCollisionStorage, _tracer);
 					}
-					continuation(checkpoint);
-				});
-
-			if (_tracer != null) {
-				transactionManager = new TracingTransactionManager(transactionManager, _tracer);
-				originalStorage = new TracingOriginalStreamScavengeMap<ulong>(originalStorage, _tracer);
-				originalCollisionStorage =
-					new TracingOriginalStreamScavengeMap<string>(originalCollisionStorage, _tracer);
-			}
+					map[backend] = connection;
+					return backend;
+				},
+				dispose: backend => _connectionPool.Return(map[backend]));
 
 			var scavengeState = new ScavengeState<string>(
 				_hasher,
 				_metastreamLookup,
-				collisionStorage,
-				hashesStorage,
-				metaStorage,
-				metaCollisionStorage,
-				originalStorage,
-				originalCollisionStorage,
-				checkpointStorage,
-				chunkTimeStampRangesStorage,
-				chunkWeightStorage,
-				transactionManager);
+				backendPool);
 
 			return scavengeState;
 		}

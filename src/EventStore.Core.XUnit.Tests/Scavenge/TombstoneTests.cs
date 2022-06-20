@@ -17,7 +17,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						Rec.Write(t++, "ab-1"),
 						Rec.CommittedDelete(t++, "ab-1"))
 					.Chunk(ScavengePointRec(t++)))
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
 				.RunAsync(x => new[] {
 					x.Recs[0].KeepIndexes(1),
 					x.Recs[1],
@@ -33,7 +33,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 					.Chunk(
 						Rec.CommittedDelete(t++, "ab-1"))
 					.Chunk(ScavengePointRec(t++)))
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
 				.RunAsync(x => new[] {
 					x.Recs[0].KeepIndexes(0),
 					x.Recs[1],
@@ -43,7 +43,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 		[Fact]
 		public async Task tombstone_with_metadata() {
 			var t = 0;
-			var (state, db) = await new Scenario()
+			await new Scenario()
 				.WithDbPath(Fixture.Directory)
 				.WithDb(x => x
 					.Chunk(
@@ -52,16 +52,17 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						Rec.Write(t++, "ab-1"),
 						Rec.CommittedDelete(t++, "ab-1"))
 					.Chunk(ScavengePointRec(t++)))
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
+				.AssertState(state => {
+					Assert.True(state.TryGetOriginalStreamData("ab-1", out _));
+					Assert.False(state.TryGetMetastreamData("$$ab-1", out _));
+				})
 				.RunAsync(x => new[] {
 					// when the stream is hard deleted we can get rid of _all_ the metadata too
 					// do not keep the last metadata record
 					x.Recs[0].KeepIndexes(3),
 					x.Recs[1],
 				});
-
-			Assert.True(state.TryGetOriginalStreamData("ab-1", out _));
-			Assert.False(state.TryGetMetastreamData("$$ab-1", out _));
 		}
 
 		[Fact]
@@ -76,7 +77,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 					.Chunk(
 						Rec.CommittedDelete(t++, "$$ab-1"))
 					.Chunk(ScavengePointRec(t++)))
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
 				.WithLogger(logger)
 				.RunAsync();
 
@@ -99,7 +100,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						Rec.TransSt(0, "ab-1"),
 						Rec.Delete(0, "ab-1"))
 					.Chunk(ScavengePointRec(1)))
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
 				.WithLogger(logger)
 				.RunAsync();
 

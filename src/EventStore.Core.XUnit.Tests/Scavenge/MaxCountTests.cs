@@ -20,7 +20,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						Rec.Write(t++, "ab-1"),
 						Rec.Write(t++, "$$ab-1", "$metadata", metadata: MaxCount1))
 					.Chunk(ScavengePointRec(t++)))
-				.WithState(x => x.WithConnection(Fixture.DbConnection))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
 				.RunAsync(x => new[] {
 					x.Recs[0].KeepIndexes(3, 4),
 					x.Recs[1],

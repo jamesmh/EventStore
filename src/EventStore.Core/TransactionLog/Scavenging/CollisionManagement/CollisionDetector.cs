@@ -35,10 +35,7 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 		}
 
 		public bool IsCollision(T item) {
-			if (_collisionsCache == null)
-				_collisionsCache = _collisions.AllRecords().ToDictionary(
-					x => x.Key,
-					x => x.Value);
+			EnsureCollisionsCache();
 			return _collisionsCache.TryGetValue(item, out _);
 		}
 
@@ -52,10 +49,17 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 			return _collisionsHashCache.TryGetValue(hash, out _);
 		}
 
-		public IEnumerable<T> AllCollisions() => _collisions
-			.AllRecords()
-			.Select(x => x.Key)
-			.OrderBy(x => x);
+		public IEnumerable<T> AllCollisions() {
+			EnsureCollisionsCache();
+			return _collisionsCache.Keys;
+		}
+
+		private void EnsureCollisionsCache() {
+			if (_collisionsCache == null)
+				_collisionsCache = _collisions.AllRecords().ToDictionary(
+					x => x.Key,
+					x => x.Value);
+		}
 
 		// Proof by induction that DetectCollisions works
 		// either:

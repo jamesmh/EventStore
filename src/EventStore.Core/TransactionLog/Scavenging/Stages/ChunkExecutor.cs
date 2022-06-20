@@ -7,7 +7,6 @@ using EventStore.Common.Log;
 using EventStore.Core.Exceptions;
 using EventStore.Core.LogAbstraction;
 using EventStore.Core.TransactionLog.Chunks;
-using EventStore.Core.TransactionLog.LogRecords;
 
 namespace EventStore.Core.TransactionLog.Scavenging {
 	public class ChunkExecutor {
@@ -21,6 +20,7 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 		private readonly long _chunkSize;
 		private readonly bool _unsafeIgnoreHardDeletes;
 		private readonly int _cancellationCheckPeriod;
+		private readonly int _threads;
 		private readonly Throttle _throttle;
 
 		public ChunkExecutor(
@@ -29,6 +29,7 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 			long chunkSize,
 			bool unsafeIgnoreHardDeletes,
 			int cancellationCheckPeriod,
+			int threads,
 			Throttle throttle) {
 
 			_metastreamLookup = metastreamLookup;
@@ -36,6 +37,7 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 			_chunkSize = chunkSize;
 			_unsafeIgnoreHardDeletes = unsafeIgnoreHardDeletes;
 			_cancellationCheckPeriod = cancellationCheckPeriod;
+			_threads = threads;
 			_throttle = throttle;
 		}
 
@@ -65,42 +67,78 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 
 			var startFromChunk = checkpoint?.DoneLogicalChunkNumber + 1 ?? 0;
 			var scavengePoint = checkpoint.ScavengePoint;
-			var sw = new Stopwatch();
 
-			foreach (var physicalChunk in GetAllPhysicalChunks(startFromChunk, scavengePoint)) {
-				var transaction = state.BeginTransaction();
-				try {
-					var physicalWeight = state.SumChunkWeights(
-						physicalChunk.ChunkStartNumber,
-						physicalChunk.ChunkEndNumber);
+			var physicalChunks = GetAllPhysicalChunks(startFromChunk, scavengePoint);
 
-					if (physicalWeight > scavengePoint.Threshold || _unsafeIgnoreHardDeletes) {
-						ExecutePhysicalChunk(
-							physicalWeight,
-							scavengePoint,
-							state,
-							scavengerLogger,
-							physicalChunk,
-							sw,
-							cancellationToken);
+			var borrowedStates = new IScavengeStateForChunkExecutorWorker<TStreamId>[_threads];
+			var stopwatches = new Stopwatch[_threads];
 
-						state.ResetChunkWeights(
+			for (var i = 0; i < borrowedStates.Length; i++) {
+				borrowedStates[i] = state.BorrowStateForWorker();
+				stopwatches[i] = new Stopwatch();
+			}
+
+			try {
+				ParallelLoop.RunWithTrailingCheckpoint(
+					source: physicalChunks,
+					degreeOfParallelism: _threads,
+					getCheckpointInclusive: physicalChunk => physicalChunk.ChunkEndNumber,
+					getCheckpointExclusive: physicalChunk => {
+						if (physicalChunk.ChunkStartNumber == 0)
+							return null;
+						return physicalChunk.ChunkStartNumber - 1;
+					},
+					process: (slot, physicalChunk) => {
+						// this is called on other threads
+						var concurrentState = borrowedStates[slot];
+						var sw = stopwatches[slot];
+
+						// the physical chunks do not overlap in chunk range, so we can sum
+						// and reset them concurrently
+						var physicalWeight = concurrentState.SumChunkWeights(
+								physicalChunk.ChunkStartNumber,
+								physicalChunk.ChunkEndNumber);
+
+						if (physicalWeight > scavengePoint.Threshold || _unsafeIgnoreHardDeletes) {
+							ExecutePhysicalChunk(
+								physicalWeight,
+								scavengePoint,
+								concurrentState,
+								scavengerLogger,
+								physicalChunk,
+								sw,
+								cancellationToken);
+
+						// resetting must happen after execution, but need not be in a transaction
+						// which is handy, because we cant run transactions concurrently very well
+						// https://www.sqlite.org/cgi/src/doc/begin-concurrent/doc/begin_concurrent.md)
+						concurrentState.ResetChunkWeights(
 							physicalChunk.ChunkStartNumber,
 							physicalChunk.ChunkEndNumber);
-					}
+						}
+						cancellationToken.ThrowIfCancellationRequested();
+					},
+					emitCheckpoint: chunkEndNumber => {
+						// this is called on the thread that called the loop, which does not do any of
+						// the processing.
+						// it is called after an item has been processed and before the slot is used
+						// to process another item. this gives us a meaningful opportunity to rest.
+						state.SetCheckpoint(
+							new ScavengeCheckpoint.ExecutingChunks(
+								scavengePoint,
+								chunkEndNumber));
 
-					cancellationToken.ThrowIfCancellationRequested();
-
-					transaction.Commit(
-						new ScavengeCheckpoint.ExecutingChunks(
-							scavengePoint,
-							physicalChunk.ChunkEndNumber));
-				} catch {
-					// invariant: there is always an open transaction whenever an exception can be thrown
-					transaction.Rollback();
-					throw;
+						if (_threads == 1) {
+							_throttle.Rest(cancellationToken);
+						} else {
+							// doesn't make sense to have lots of threads running and resting,
+							// run fewer threads if the load is too high.
+						}
+					});
+			} finally {
+				for (var i = 0; i < borrowedStates.Length; i++) {
+					borrowedStates[i].Dispose();
 				}
-				_throttle.Rest(cancellationToken);
 			}
 		}
 
@@ -126,7 +164,7 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 		private void ExecutePhysicalChunk(
 			float physicalWeight,
 			ScavengePoint scavengePoint,
-			IScavengeStateForChunkExecutor<TStreamId> state,
+			IScavengeStateForChunkExecutorWorker<TStreamId> state,
 			ITFChunkScavengerLog scavengerLogger,
 			IChunkReaderForExecutor<TStreamId, TRecord> sourceChunk,
 			Stopwatch sw,
@@ -241,7 +279,7 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 		}
 
 		private bool ShouldDiscard(
-			IScavengeStateForChunkExecutor<TStreamId> state,
+			IScavengeStateForChunkExecutorWorker<TStreamId> state,
 			ScavengePoint scavengePoint,
 			RecordForExecutor<TStreamId, TRecord>.Prepare record) {
 
@@ -301,7 +339,7 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 		}
 
 		private ChunkExecutionInfo GetStreamExecutionDetails(
-			IScavengeStateForChunkExecutor<TStreamId> state,
+			IScavengeStateForChunkExecutorWorker<TStreamId> state,
 			TStreamId streamId) {
 
 			if (_metastreamLookup.IsMetaStream(streamId)) {

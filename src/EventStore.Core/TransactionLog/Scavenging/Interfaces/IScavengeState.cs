@@ -14,6 +14,8 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 		bool TryGetCheckpoint(out ScavengeCheckpoint checkpoint);
 
 		IEnumerable<TStreamId> AllCollisions();
+
+		void LogStats();
 	}
 
 	// all the components use these
@@ -32,10 +34,11 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 	public interface ITransactionManager : ITransactionCompleter{
 		void Begin();
 		void RegisterOnRollback(Action onRollback);
+		void UnregisterOnRollback();
 	}
 
-	// abstraction for the backing store. memory, sqlite etc.
-	public interface ITransactionFactory<TTransaction> {
+		// abstraction for the backing store. memory, sqlite etc.
+		public interface ITransactionFactory<TTransaction> {
 		TTransaction Begin();
 		void Rollback(TTransaction transaction);
 		void Commit(TTransaction transaction);
@@ -65,7 +68,7 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 		StreamHandle<TStreamId> GetStreamHandle(TStreamId streamId);
 	}
 
-	public interface IScavengeStateForCalculatorReadOnly<TStreamId> : IScavengeStateCommon {
+	public interface IScavengeStateForCalculatorReadOnly<TStreamId> {
 		// Calculator iterates through the scavengable original streams and their metadata
 		// it doesn't need to do anything with the metadata streams, accumulator has done those.
 		IEnumerable<(StreamHandle<TStreamId>, OriginalStreamData)> OriginalStreamsToCalculate(
@@ -76,6 +79,7 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 
 	public interface IScavengeStateForCalculator<TStreamId> :
 		IScavengeStateForCalculatorReadOnly<TStreamId>,
+		IScavengeStateCommon,
 		IIncreaseChunkWeights {
 
 		void SetOriginalStreamDiscardPoints(
@@ -90,8 +94,13 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 	}
 
 	public interface IScavengeStateForChunkExecutor<TStreamId> : IScavengeStateCommon {
-		float SumChunkWeights(int startLogicalChunkNumber, int endLogicalChunkNumber);
+		IScavengeStateForChunkExecutorWorker<TStreamId> BorrowStateForWorker();
+	}
+
+	// implementations must be thread-safe
+	public interface IScavengeStateForChunkExecutorWorker<TStreamId> : IDisposable {
 		void ResetChunkWeights(int startLogicalChunkNumber, int endLogicalChunkNumber);
+		float SumChunkWeights(int startLogicalChunkNumber, int endLogicalChunkNumber);
 		bool TryGetChunkExecutionInfo(TStreamId streamId, out ChunkExecutionInfo info);
 		bool TryGetMetastreamData(TStreamId streamId, out MetastreamData metastreamData);
 	}
@@ -110,5 +119,21 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 		bool AllChunksExecuted();
 		void DeleteMetastreamData();
 		void DeleteOriginalStreamData(bool deleteArchived);
+	}
+
+	// this represents access to the actual state storage. these are grouped together into one inteface
+	// so that they can be accessed transactionally
+	public interface IScavengeStateBackend<TStreamId> : IDisposable {
+		void LogStats();
+		IScavengeMap<TStreamId, Unit> CollisionStorage { get; }
+		IScavengeMap<ulong, TStreamId> Hashes { get; }
+		IMetastreamScavengeMap<ulong> MetaStorage { get; }
+		IMetastreamScavengeMap<TStreamId> MetaCollisionStorage { get; }
+		IOriginalStreamScavengeMap<ulong> OriginalStorage { get; }
+		IOriginalStreamScavengeMap<TStreamId> OriginalCollisionStorage { get; }
+		IScavengeMap<Unit, ScavengeCheckpoint> CheckpointStorage { get; }
+		IScavengeMap<int, ChunkTimeStampRange> ChunkTimeStampRanges { get; }
+		IChunkWeightScavengeMap ChunkWeights { get; }
+		ITransactionManager TransactionManager { get; }
 	}
 }
