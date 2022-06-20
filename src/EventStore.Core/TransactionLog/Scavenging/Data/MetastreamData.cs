@@ -1,5 +1,7 @@
-﻿namespace EventStore.Core.TransactionLog.Scavenging {
-	public struct MetastreamData {
+﻿using System;
+
+namespace EventStore.Core.TransactionLog.Scavenging {
+	public struct MetastreamData : IEquatable<MetastreamData> {
 		public static MetastreamData Empty { get; } = new MetastreamData(
 			isTombstoned: false,
 			discardPoint: DiscardPoint.KeepAll);
@@ -18,5 +20,13 @@
 		public bool IsTombstoned { get; }
 
 		public DiscardPoint DiscardPoint { get; }
+
+		public bool Equals(MetastreamData other) =>
+			IsTombstoned == other.IsTombstoned &&
+			DiscardPoint == other.DiscardPoint;
+
+		// avoid the default, reflection based, implementations if we ever need to call these
+		public override int GetHashCode() => throw new NotImplementedException();
+		public override bool Equals(object other) => throw new NotImplementedException();
 	}
 }

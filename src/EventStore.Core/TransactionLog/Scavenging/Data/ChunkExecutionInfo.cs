@@ -2,7 +2,7 @@
 
 namespace EventStore.Core.TransactionLog.Scavenging {
 	// For ChunkExecutor, which implements maxAge more accurately than the index executor
-	public struct ChunkExecutionInfo {
+	public struct ChunkExecutionInfo : IEquatable<ChunkExecutionInfo> {
 		public ChunkExecutionInfo(
 			bool isTombstoned,
 			DiscardPoint discardPoint,
@@ -19,5 +19,15 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 		public DiscardPoint DiscardPoint { get; }
 		public DiscardPoint MaybeDiscardPoint { get; }
 		public TimeSpan? MaxAge { get; }
+
+		public bool Equals(ChunkExecutionInfo other) =>
+			IsTombstoned == other.IsTombstoned &&
+			DiscardPoint == other.DiscardPoint &&
+			MaybeDiscardPoint == other.MaybeDiscardPoint &&
+			MaxAge == other.MaxAge;
+
+		// avoid the default, reflection based, implementations if we ever need to call these
+		public override int GetHashCode() => throw new NotImplementedException();
+		public override bool Equals(object other) => throw new NotImplementedException();
 	}
 }

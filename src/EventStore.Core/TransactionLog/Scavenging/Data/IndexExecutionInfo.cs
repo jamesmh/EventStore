@@ -1,5 +1,7 @@
-﻿namespace EventStore.Core.TransactionLog.Scavenging {
-	public struct IndexExecutionInfo {
+﻿using System;
+
+namespace EventStore.Core.TransactionLog.Scavenging {
+	public struct IndexExecutionInfo : IEquatable<IndexExecutionInfo> {
 		public IndexExecutionInfo(
 			bool isMetastream,
 			bool isTombstoned,
@@ -18,5 +20,10 @@
 		public bool IsTombstoned { get; }
 
 		public DiscardPoint DiscardPoint { get; }
+
+		// avoid the default, reflection based, implementations if we ever need to call these
+		public override int GetHashCode() => throw new NotImplementedException();
+		public override bool Equals(object other) => throw new NotImplementedException();
+		public bool Equals(IndexExecutionInfo other) => throw new NotImplementedException();
 	}
 }

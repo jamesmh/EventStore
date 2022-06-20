@@ -2,7 +2,7 @@
 using EventStore.Common.Utils;
 
 namespace EventStore.Core.TransactionLog.Scavenging {
-	public readonly struct DiscardPoint {
+	public readonly struct DiscardPoint : IEquatable<DiscardPoint> {
 		private DiscardPoint(long firstEventNumberToKeep) {
 			if (firstEventNumberToKeep < 0)
 				firstEventNumberToKeep = 0;
@@ -49,6 +49,8 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 
 		public static bool operator !=(DiscardPoint x, DiscardPoint y) =>
 			x.FirstEventNumberToKeep != y.FirstEventNumberToKeep;
+
+		public bool Equals(DiscardPoint other) => this == other;
 
 		public override bool Equals(object obj) =>
 			obj is DiscardPoint that && this == that;
