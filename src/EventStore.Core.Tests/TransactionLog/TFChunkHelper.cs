@@ -6,7 +6,6 @@ using EventStore.Core.Util;
 
 namespace EventStore.Core.Tests.TransactionLog {
 	public static class TFChunkHelper {
-		//qq the overloads are different here in master, take care.
 		public static TFChunkDbConfig CreateDbConfig(
 			string pathName,
 			long writerCheckpointPosition,

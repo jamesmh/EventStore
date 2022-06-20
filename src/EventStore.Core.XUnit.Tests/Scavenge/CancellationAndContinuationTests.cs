@@ -403,7 +403,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 					// scavenge completed
 					Assert.True(state.TryGetCheckpoint(out var checkpoint));
 					var done = Assert.IsType<ScavengeCheckpoint.Done>(checkpoint);
-					//qq Assert.Equal(thecorrectscavengepoint/number, done.?);
+					Assert.Equal("SP-0", done.ScavengePoint.GetName());
 				})
 				.RunAsync(x => new[] {
 					x.Recs[0].KeepIndexes(0, 2),
@@ -756,10 +756,6 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 				.CancelWhenCalculatingOriginalStream("ab-1")
 				// make sure we dont rescavenge the chunks
 				.CancelWhenExecutingChunk("ab-1")
-				//qq todo: consider making sure we dont rescavenge a ptable that was scavenged
-				// but this is quite awkward, perhaps we can find another way to test it.
-				// at least wait until we are not using the scaffold.
-				//.CancelWhenExecutingIndexEntry("ab-1")
 				.AssertTrace(
 					Tracer.Line("Executing index from checkpoint: Executing index for SP-0"),
 					Tracer.Line("Done"),

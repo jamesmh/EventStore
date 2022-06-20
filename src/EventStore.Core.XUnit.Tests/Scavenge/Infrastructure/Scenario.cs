@@ -23,6 +23,7 @@ using Xunit;
 using static EventStore.Core.XUnit.Tests.Scavenge.StreamMetadatas;
 
 namespace EventStore.Core.XUnit.Tests.Scavenge {
+	// sort of similar to ScavengeTestScenario
 	public class Scenario {
 		private const int Threads = 1;
 
@@ -159,18 +160,14 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 				getExpectedKeptIndexEntries);
 		}
 
-		//qqq make sure the directory gets cleaned up
-		// simialarities with ScavengeTestScenario
 		private async Task<DbResult> RunInternalAsync(
 			Func<DbResult, LogRecord[][]> getExpectedKeptRecords,
 			Func<DbResult, LogRecord[][]> getExpectedKeptIndexEntries) {
 
-			//qq use directory fixture, or memdb. pattern in ScavengeTestScenario.cs
 			if (string.IsNullOrEmpty(_dbPath))
 				throw new Exception("call WithDbPath");
 
-			//qq something is unhappy with memdb.. something to do with writing the footer of the new
-			// inmem chunk
+			// something is unhappy with memdb.. to do with writing the footer of the new inmem chunk
 			var memDb = false;
 			var dbConfig = TFChunkHelper.CreateDbConfig(_dbPath, 0, chunkSize: 1024 * 1024, memDb: memDb);
 			var dbResult = _getDb(dbConfig);
@@ -201,7 +198,6 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 				new XXHashUnsafe(),
 				new Murmur3AUnsafe());
 
-			//qqq configurable?
 			var humanHashers = true;
 			if (humanHashers) {
 				lowHasher = new ConstantHasher(0);
@@ -366,7 +362,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 					chunkMerger,
 					indexExecutor,
 					cleaner,
-					new ScaffoldScavengePointSource2(
+					new MockScavengePointSource(
 						dbResult,
 						EffectiveNow,
 						_newScavengePoint ?? new List<ScavengePoint>()),
@@ -415,18 +411,8 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 					}
 				}
 
-				//qq we do some naive calculations here that are inefficient but 'obviously correct'
-				// we might want to consider breaking them out and writing some simple tests for them
-				// just to be sure though.
-
-				// after loading in the log we expect to be able to
-				// 1. See a list of the collisions
-				// 2. Find the metadata for each stream, by stream name.
-				// 3. iterate through the payloads, with a name handle for the collisions
-				//    and a hashhandle for the non-collisions.
-
-				// 1. see a list of the stream collisions
-				// 1a. naively calculate list of collisions
+				// See a list of the stream collisions
+				//   - naively calculate list of collisions
 				var hashesInUse = new Dictionary<ulong, string>();
 				var collidingStreams = new HashSet<string>();
 
@@ -459,16 +445,11 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 					}
 				}
 
-				// 1b. assert list of collisions.
+				//   - Assert list of collisions.
 				Assert.Equal(collidingStreams.OrderBy(x => x), scavengeState.AllCollisions().OrderBy(x => x));
 
-				//qq some other checks that look inside the scavenge state here because
-				// - they are just being troublesome to maintain rather than helping to find problems
-				// - the tests can still check the state and the trace if they want
-				// - the output checks are catching most problems
-
-				// 4. The records we expected to keep are kept
-				// 5. The index entries we expected to be kept are kept
+				// The records we expected to keep are kept
+				// The index entries we expected to be kept are kept
 				var collisions = new HashSet<string>();
 				foreach (var stream in scavengeState.AllCollisions())
 					collisions.Add(stream);
@@ -478,8 +459,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 					CheckIndex(keptIndexEntries, readIndex, collisions, hasher);
 				}
 
-				if (_assertState != null)
-					_assertState(scavengeState);
+				_assertState?.Invoke(scavengeState);
 
 				return dbResult;
 

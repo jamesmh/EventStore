@@ -301,7 +301,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge.Sqlite {
 			sut[3] = osd[3];
 			sut[4] = osd[4];
 
-			Assert.Collection(sut.AllRecords(), //qq probably need test for .ActiveRecords()
+			Assert.Collection(sut.AllRecords(),
 				item => {
 					Assert.Equal(0, item.Key);
 					Assert.Equal(osd[0], item.Value, OriginalStreamDataComparer.Default);
