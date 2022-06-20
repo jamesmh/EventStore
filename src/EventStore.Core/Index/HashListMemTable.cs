@@ -190,6 +190,64 @@ namespace EventStore.Core.Index {
 			return false;
 		}
 
+		public bool TryGetNextEntry(ulong stream, long afterNumber, out IndexEntry entry) {
+			if (afterNumber < 0)
+				throw new ArgumentOutOfRangeException(nameof(afterNumber));
+
+			ulong hash = GetHash(stream);
+			entry = TableIndex.InvalidIndexEntry;
+
+			if (afterNumber >= long.MaxValue)
+				return false;
+
+			SortedList<Entry, byte> list;
+			if (_hash.TryGetValue(hash, out list)) {
+				if (!Monitor.TryEnter(list, 10000)) throw new UnableToAcquireLockInReasonableTimeException();
+				try {
+					int endIdx = list.LowerBound(new Entry(afterNumber + 1, 0));
+					if (endIdx == -1)
+						return false;
+
+					var e = list.Keys[endIdx];
+					entry = new IndexEntry(hash, e.EvNum, e.LogPos);;
+					return true;
+				} finally {
+					Monitor.Exit(list);
+				}
+			}
+
+			return false;
+		}
+
+		public bool TryGetPreviousEntry(ulong stream, long beforeNumber, out IndexEntry entry) {
+			if (beforeNumber < 0)
+				throw new ArgumentOutOfRangeException(nameof(beforeNumber));
+
+			ulong hash = GetHash(stream);
+			entry = TableIndex.InvalidIndexEntry;
+
+			if (beforeNumber <= 0)
+				return false;
+
+			SortedList<Entry, byte> list;
+			if (_hash.TryGetValue(hash, out list)) {
+				if (!Monitor.TryEnter(list, 10000)) throw new UnableToAcquireLockInReasonableTimeException();
+				try {
+					int endIdx = list.UpperBound(new Entry(beforeNumber - 1, long.MaxValue));
+					if (endIdx == -1)
+						return false;
+
+					var e = list.Keys[endIdx];
+					entry = new IndexEntry(hash, e.EvNum, e.LogPos);;
+					return true;
+				} finally {
+					Monitor.Exit(list);
+				}
+			}
+
+			return false;
+		}
+
 		public IEnumerable<IndexEntry> IterateAllInOrder() {
 			//Log.Trace("Sorting array in HashListMemTable.IterateAllInOrder...");
 

@@ -1,4 +1,4 @@
-﻿using EventStore.Core.Data;
+﻿using EventStore.Core.Services.Storage.ReaderIndex;
 
 namespace EventStore.Core.TransactionLog.Scavenging {
 	public interface IIndexReaderForCalculator<TStreamId> {
@@ -7,7 +7,7 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 
 		//qq needs to return index entries even for deleted streams, and regardless of the metadata
 		// applied to the stream
-		EventInfo[] ReadEventInfoForward(
+		IndexReadEventInfoResult ReadEventInfoForward(
 			StreamHandle<TStreamId> stream,
 			long fromEventNumber,
 			int maxCount,

@@ -569,6 +569,31 @@ namespace EventStore.Core {
 					var cancellationCheckPeriod = 1024; //qq tuning: sensible?
 
 					var longHasher = new CompositeHasher<string>(lowHasher, highHasher);
+
+					// the backends (and therefore connections) are scoped to the run of the scavenge
+					// so that we don't keep hold of memory used for the page caches between scavenges
+					var backendPool = new ObjectPool<IScavengeStateBackend<string>>(
+						objectPoolName: "scavenge backend pool",
+						initialCount: 1,
+						maxCount: TFChunkScavenger.MaxThreadCount + 1,
+						factory: () => {
+							var connectionStringBuilder = new SqliteConnectionStringBuilder {
+								DataSource = Path.Combine(scavengeDirectory, "scavenging.db")
+							};
+							var connection = new SqliteConnection(connectionStringBuilder.ConnectionString);
+							connection.Open();
+							var sqlite = new SqliteScavengeBackend<string>(
+								cacheSizeInBytes: vNodeSettings.ScavengeBackendCacheSize);
+							sqlite.Initialize(connection);
+							return sqlite;
+						},
+						dispose: backend => backend.Dispose());
+
+					var state = new ScavengeState<string>(
+						longHasher,
+						metastreamLookup,
+						backendPool);
+
 					var accumulator = new Accumulator<string>(
 						chunkSize: TFConsts.ChunkSize,
 						metastreamLookup: metastreamLookup,
@@ -576,13 +601,14 @@ namespace EventStore.Core {
 							db.Manager,
 							metastreamLookup,
 							streamIdConverter,
-							db.Config.ReplicationCheckpoint),
+							db.Config.ReplicationCheckpoint,
+							TFConsts.ChunkSize),
 						index: new IndexReaderForAccumulator(readIndex),
 						cancellationCheckPeriod: cancellationCheckPeriod,
 						throttle: throttle);
 
 					var calculator = new Calculator<string>(
-						new IndexReaderForCalculator(readIndex),
+						new IndexReaderForCalculator(readIndex, state.LookupStreamIds),
 						chunkSize: TFConsts.ChunkSize,
 						cancellationCheckPeriod: cancellationCheckPeriod,
 						checkpointPeriod: 32_768, //qq tuning: sensible?
@@ -613,30 +639,6 @@ namespace EventStore.Core {
 						unsafeIgnoreHardDeletes: vNodeSettings.UnsafeIgnoreHardDeletes);
 
 					var scavengePointSource = new ScavengePointSource(ioDispatcher);
-
-					// the backends (and therefore connections) are scoped to the run of the scavenge
-					// so that we don't keep hold of memory used for the page caches between scavenges
-					var backendPool = new ObjectPool<IScavengeStateBackend<string>>(
-						objectPoolName: "scavenge backend pool",
-						initialCount: 1,
-						maxCount: TFChunkScavenger.MaxThreadCount + 1,
-						factory: () => {
-							var connectionStringBuilder = new SqliteConnectionStringBuilder {
-								DataSource = Path.Combine(scavengeDirectory, "scavenging.db")
-							};
-							var connection = new SqliteConnection(connectionStringBuilder.ConnectionString);
-							connection.Open();
-							var sqlite = new SqliteScavengeBackend<string>(
-								cacheSizeInBytes: vNodeSettings.ScavengeBackendCacheSize);
-							sqlite.Initialize(connection);
-							return sqlite;
-						},
-						dispose: backend => backend.Dispose());
-
-					var state = new ScavengeState<string>(
-						longHasher,
-						metastreamLookup,
-						backendPool);
 
 					return new Scavenger<string>(
 						state: state,

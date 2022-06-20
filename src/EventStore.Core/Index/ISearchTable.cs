@@ -11,6 +11,8 @@ namespace EventStore.Core.Index {
 		bool TryGetLatestEntry(ulong stream, out IndexEntry entry);
 		bool TryGetLatestEntry(ulong stream, long beforePosition, Func<IndexEntry,bool> isForThisStream, out IndexEntry entry);
 		bool TryGetOldestEntry(ulong stream, out IndexEntry entry);
+		bool TryGetNextEntry(ulong stream, long afterVersion, out IndexEntry entry);
+		bool TryGetPreviousEntry(ulong stream, long beforeVersion, out IndexEntry entry);
 		IEnumerable<IndexEntry> GetRange(ulong stream, long startNumber, long endNumber, int? limit = null);
 		IEnumerable<IndexEntry> IterateAllInOrder();
 	}

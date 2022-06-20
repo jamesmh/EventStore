@@ -348,7 +348,7 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 				handle: state.GetStreamHandle(metastreamId),
 				fromEventNumber: -1, // last
 				maxCount: 1,
-				scavengePoint: scavengePoint);
+				scavengePoint: scavengePoint).EventInfos;
 
 			foreach (var eventInfo in eventInfos) {
 				var logicalChunkNumber = (int)(eventInfo.LogPosition / _chunkSize);
@@ -385,7 +385,7 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 				handle: metastreamId,
 				fromEventNumber: fromEventNumber,
 				maxCount: 100,
-				scavengePoint: scavengePoint);
+				scavengePoint: scavengePoint).EventInfos;
 
 			isInOrder = true;
 			foreach (var eventInfo in eventInfos) {

@@ -235,11 +235,18 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 				var cancellationTokenSource = new CancellationTokenSource();
 				var metastreamLookup = new LogV2SystemStreams();
 
+				var scavengeState = new ScavengeStateBuilder(hasher, metastreamLookup)
+					.TransformBuilder(_stateTransform)
+					.CancelWhenCheckpointing(_cancelWhenCheckpointingType, cancellationTokenSource)
+					.WithTracer(Tracer)
+					.Build();
+
 				IChunkReaderForAccumulator<string> chunkReader = new ChunkReaderForAccumulator<string>(
 					dbResult.Db.Manager,
 					metastreamLookup,
 					new LogV2StreamIdConverter(),
-					dbResult.Db.Config.ReplicationCheckpoint);
+					dbResult.Db.Config.ReplicationCheckpoint,
+					dbConfig.ChunkSize);
 
 				var indexReader = new IndexReaderForAccumulator(readIndex);
 
@@ -252,7 +259,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 					});
 
 				var calculatorIndexReader = new AdHocIndexReaderInterceptor<string>(
-					new IndexReaderForCalculator(readIndex),
+					new IndexReaderForCalculator(readIndex, scavengeState.LookupStreamIds),
 					(f, handle, x) => {
 						if (_calculatingCancellationTrigger != null &&
 							handle.Kind == StreamHandle.Kind.Hash &&
@@ -343,12 +350,6 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 				chunkMerger = new TracingChunkMerger(chunkMerger, Tracer);
 				indexExecutor = new TracingIndexExecutor<string>(indexExecutor, Tracer);
 				cleaner = new TracingCleaner(cleaner, Tracer);
-
-				var scavengeState = new ScavengeStateBuilder(hasher, metastreamLookup)
-					.TransformBuilder(_stateTransform)
-					.CancelWhenCheckpointing(_cancelWhenCheckpointingType, cancellationTokenSource)
-					.WithTracer(Tracer)
-					.Build();
 
 				// if test provided its own logger it can check its own status
 				var expectSuccess = _logger == null;

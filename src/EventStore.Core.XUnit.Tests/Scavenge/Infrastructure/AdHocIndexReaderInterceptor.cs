@@ -1,5 +1,6 @@
 ﻿using System;
 using EventStore.Core.Data;
+using EventStore.Core.Services.Storage.ReaderIndex;
 using EventStore.Core.TransactionLog.Scavenging;
 
 namespace EventStore.Core.XUnit.Tests.Scavenge {
@@ -27,7 +28,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 			return _f(_wrapped.GetLastEventNumber, streamHandle, scavengePoint);
 		}
 
-		public EventInfo[] ReadEventInfoForward(
+		public IndexReadEventInfoResult ReadEventInfoForward(
 			StreamHandle<TStreamId> stream,
 			long fromEventNumber,
 			int maxCount,

@@ -54,10 +54,13 @@ namespace EventStore.Core.Tests.Services.Storage.HashCollisions {
 		public void returns_correct_events_before_position() {
 			var curEvents = new List<EventRecord>();
 
-			foreach (var @event in _events)
-			{
-				CheckResult(curEvents.ToArray(),
-					ReadIndex.ReadEventInfoForward_NoCollisions(Hash, 0, int.MaxValue, @event.LogPosition));
+			foreach (var @event in _events) {
+				var result = ReadIndex.ReadEventInfoForward_NoCollisions(Hash, 0, int.MaxValue, @event.LogPosition);
+				CheckResult(curEvents.ToArray(), result);
+				if (curEvents.Count == 0)
+					Assert.True(result.IsEndOfStream);
+				else
+					Assert.AreEqual(int.MaxValue, result.NextEventNumber);
 
 				if (@event.EventStreamId == Stream)
 					curEvents.Add(@event);
@@ -78,9 +81,10 @@ namespace EventStore.Core.Tests.Services.Storage.HashCollisions {
 				Assert.Greater(maxCount, 0);
 				Assert.GreaterOrEqual(fromEventNumber, 0);
 
-				CheckResult(curEvents.Skip(curEvents.Count - maxCount).ToArray(),
-					ReadIndex.ReadEventInfoForward_NoCollisions(
-						Hash, fromEventNumber, maxCount, long.MaxValue));
+				var result = ReadIndex.ReadEventInfoForward_NoCollisions(
+					Hash, fromEventNumber, maxCount, long.MaxValue);
+				CheckResult(curEvents.Skip(curEvents.Count - maxCount).ToArray(), result);
+				Assert.AreEqual(@event.EventNumber + 1, result.NextEventNumber);
 			}
 		}
 	}

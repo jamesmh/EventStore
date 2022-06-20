@@ -251,17 +251,32 @@ namespace EventStore.Core.Services.Storage.ReaderIndex {
 						.Select(x => new { IndexEntry = x, Prepare = ReadPrepareInternal(reader, x.Position) })
 						.Where(x => x.Prepare != null && x.Prepare.EventStreamId == streamId)
 						.Select(x => x.IndexEntry);
+				}, afterEventNumber => {
+					if (!_tableIndex.TryGetNextEntry(streamId, afterEventNumber, out var entry))
+						return -1;
+
+					// Note that this event number may be for a colliding stream. It is not a major issue since these
+					// colliding events will be filtered out during the next read. However, it may cause some extra empty reads.
+					return entry.Version;
 				}, fromEventNumber, maxCount, beforePosition);
 			}
 		}
 
 		public IndexReadEventInfoResult ReadEventInfoForward_NoCollisions(ulong stream, long fromEventNumber, int maxCount, long beforePosition) {
 			return ReadEventInfoForwardInternal((startEventNumber, endEventNumber) =>
-				_tableIndex.GetRange(stream, startEventNumber,  endEventNumber), fromEventNumber, maxCount, beforePosition);
+				_tableIndex.GetRange(stream, startEventNumber,  endEventNumber),
+				afterEventNumber => {
+					if (!_tableIndex.TryGetNextEntry(stream, afterEventNumber, out var entry))
+						return -1;
+
+					return entry.Version;
+				},
+				fromEventNumber, maxCount, beforePosition);
 		}
 
 		private static IndexReadEventInfoResult ReadEventInfoForwardInternal(
 			Func<long, long, IEnumerable<IndexEntry>> readIndexEntries,
+			Func<long, long> getNextEventNumber,
 			long fromEventNumber,
 			int maxCount,
 			long beforePosition) {
@@ -274,7 +289,16 @@ namespace EventStore.Core.Services.Storage.ReaderIndex {
 
 			var eventInfos = ReadEventInfoInternal(readIndexEntries, startEventNumber, endEventNumber, beforePosition);
 			Array.Reverse(eventInfos);
-			return new IndexReadEventInfoResult(eventInfos);
+
+			long nextEventNumber;
+			if (endEventNumber >= long.MaxValue)
+				nextEventNumber = -1;
+			else if (eventInfos.Length == 0)
+				nextEventNumber = getNextEventNumber(endEventNumber);
+			else
+				nextEventNumber = endEventNumber + 1;
+
+			return new IndexReadEventInfoResult(eventInfos, nextEventNumber);
 		}
 
 		IndexReadStreamResult IIndexReader.
@@ -351,7 +375,7 @@ namespace EventStore.Core.Services.Storage.ReaderIndex {
 				fromEventNumber = GetStreamLastEventNumber_KnownCollisions(streamId, beforePosition);
 
 			if (fromEventNumber == ExpectedVersion.NoStream)
-				return new IndexReadEventInfoResult(new EventInfo[] { });
+				return new IndexReadEventInfoResult(new EventInfo[] { }, -1);
 
 			using (var reader = _backend.BorrowReader()) {
 				return ReadEventInfoBackwardInternal((startEventNumber, endEventNumber) => {
@@ -359,7 +383,12 @@ namespace EventStore.Core.Services.Storage.ReaderIndex {
 						.Select(x => new { IndexEntry = x, Prepare = ReadPrepareInternal(reader, x.Position) })
 						.Where(x => x.Prepare != null && x.Prepare.EventStreamId == streamId)
 						.Select(x => x.IndexEntry);
-				}, fromEventNumber, maxCount, beforePosition);
+				}, beforeEventNumber => {
+					if (!_tableIndex.TryGetPreviousEntry(streamId, beforeEventNumber, out var entry))
+						return -1;
+					return entry.Version;
+				},
+				fromEventNumber, maxCount, beforePosition);
 			}
 		}
 
@@ -373,14 +402,20 @@ namespace EventStore.Core.Services.Storage.ReaderIndex {
 				fromEventNumber = GetStreamLastEventNumber_NoCollisions(stream, getStreamId, beforePosition);
 
 			if (fromEventNumber == ExpectedVersion.NoStream)
-				return new IndexReadEventInfoResult(new EventInfo[] { });
+				return new IndexReadEventInfoResult(new EventInfo[] { }, -1);
 
 			return ReadEventInfoBackwardInternal((startEventNumber, endEventNumber) =>
-				_tableIndex.GetRange(stream, startEventNumber,  endEventNumber), fromEventNumber, maxCount, beforePosition);
+				_tableIndex.GetRange(stream, startEventNumber,  endEventNumber),
+				beforeEventNumber => {
+					if (!_tableIndex.TryGetPreviousEntry(stream, beforeEventNumber, out var entry))
+						return -1;
+					return entry.Version;
+				}, fromEventNumber, maxCount, beforePosition);
 		}
 
 		private static IndexReadEventInfoResult ReadEventInfoBackwardInternal(
 			Func<long, long, IEnumerable<IndexEntry>> readIndexEntries,
+			Func<long, long> getNextEventNumber,
 			long fromEventNumber,
 			int maxCount,
 			long beforePosition) {
@@ -391,7 +426,16 @@ namespace EventStore.Core.Services.Storage.ReaderIndex {
 			var endEventNumber = fromEventNumber;
 
 			var eventInfos = ReadEventInfoInternal(readIndexEntries, startEventNumber, endEventNumber, beforePosition);
-			return new IndexReadEventInfoResult(eventInfos);
+
+			long nextEventNumber;
+			if (startEventNumber <= 0)
+				nextEventNumber = -1;
+			else if (eventInfos.Length == 0)
+				nextEventNumber = getNextEventNumber(startEventNumber);
+			else
+				nextEventNumber = startEventNumber - 1;
+
+			return new IndexReadEventInfoResult(eventInfos, nextEventNumber);
 		}
 
 		private static EventInfo[] ReadEventInfoInternal( // resulting array is in descending order
@@ -582,7 +626,8 @@ namespace EventStore.Core.Services.Storage.ReaderIndex {
 			if (_tableIndex.TryGetOldestEntry(stream, out var indexEntry) &&
 			    indexEntry.Position < beforePosition) {
 				var prepare = ReadPrepareInternal(reader, indexEntry.Position);
-				return prepare.EventStreamId;
+				if (prepare != null)
+					return prepare.EventStreamId;
 			}
 
 			return getStreamId(stream);

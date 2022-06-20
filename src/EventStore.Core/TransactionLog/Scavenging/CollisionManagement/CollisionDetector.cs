@@ -132,5 +132,15 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 
 			return CollisionResult.NewCollision;
 		}
+
+		public IEnumerable<T> LookupStreamIds(ulong streamHash) {
+			if (!_hashUsers.TryGetValue(streamHash, out var stream))
+				return default;
+
+			if (!IsCollisionHash(streamHash))
+				return new[] { stream };
+
+			return AllCollisions().Where(x => _hasher.Hash(x) == streamHash);
+		}
 	}
 }

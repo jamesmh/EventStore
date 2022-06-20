@@ -59,23 +59,29 @@ namespace EventStore.Core.Tests.Services.Storage.HashCollisions {
 
 			foreach (var @event in _events)
 			{
+				IndexReadEventInfoResult result;
 				if (@event.EventStreamId == Stream) {
-					CheckResult(curEvents.ToArray(),
-						ReadIndex.ReadEventInfoBackward_NoCollisions(Hash, GetStreamId,
-							@event.EventNumber - 1, int.MaxValue, @event.LogPosition));
+					result = ReadIndex.ReadEventInfoBackward_NoCollisions(Hash, GetStreamId,
+						@event.EventNumber - 1, int.MaxValue, @event.LogPosition);
+					CheckResult(curEvents.ToArray(), result);
+					Assert.True(result.IsEndOfStream);
 
 					// events >= @event.EventNumber should be filtered out
-					CheckResult(curEvents.ToArray(),
-						ReadIndex.ReadEventInfoBackward_NoCollisions(Hash, GetStreamId,
-							@event.EventNumber, int.MaxValue, @event.LogPosition));
+					result = ReadIndex.ReadEventInfoBackward_NoCollisions(Hash, GetStreamId,
+						@event.EventNumber, int.MaxValue, @event.LogPosition);
+					CheckResult(curEvents.ToArray(), result);
+					Assert.True(result.IsEndOfStream);
 
-					CheckResult(curEvents.ToArray(),
-						ReadIndex.ReadEventInfoBackward_NoCollisions(Hash, GetStreamId,
-							@event.EventNumber + 1, int.MaxValue, @event.LogPosition));
+					result = ReadIndex.ReadEventInfoBackward_NoCollisions(Hash, GetStreamId,
+						@event.EventNumber + 1, int.MaxValue, @event.LogPosition);
+					CheckResult(curEvents.ToArray(), result);
+					Assert.True(result.IsEndOfStream);
 				}
 
-				CheckResult(curEvents.ToArray(),
-					ReadIndex.ReadEventInfoBackward_NoCollisions(Hash, GetStreamId, -1, int.MaxValue, @event.LogPosition));
+				result = ReadIndex.ReadEventInfoBackward_NoCollisions(Hash, GetStreamId, -1, int.MaxValue,
+					@event.LogPosition);
+				CheckResult(curEvents.ToArray(), result);
+				Assert.True(result.IsEndOfStream);
 
 				if (@event.EventStreamId == Stream)
 					curEvents.Add(@event);
@@ -96,9 +102,15 @@ namespace EventStore.Core.Tests.Services.Storage.HashCollisions {
 				Assert.Greater(maxCount, 0);
 				Assert.GreaterOrEqual(fromEventNumber, 0);
 
-				CheckResult(curEvents.Skip(curEvents.Count - maxCount).ToArray(),
+				var result =
 					ReadIndex.ReadEventInfoBackward_NoCollisions(
-						Hash, GetStreamId, fromEventNumber, maxCount, long.MaxValue));
+						Hash, GetStreamId, fromEventNumber, maxCount, long.MaxValue);
+				CheckResult(curEvents.Skip(curEvents.Count - maxCount).ToArray(), result);
+
+				if (fromEventNumber - maxCount < 0)
+					Assert.True(result.IsEndOfStream);
+				else
+					Assert.AreEqual(fromEventNumber - maxCount, result.NextEventNumber);
 			}
 		}
 	}

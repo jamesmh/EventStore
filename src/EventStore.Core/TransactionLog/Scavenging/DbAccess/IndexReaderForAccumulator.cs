@@ -10,7 +10,7 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 			_readIndex = readIndex;
 		}
 
-		public EventInfo[] ReadEventInfoForward(
+		public IndexReadEventInfoResult ReadEventInfoForward(
 			StreamHandle<string> handle,
 			long fromEventNumber,
 			int maxCount,
@@ -19,17 +19,17 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 				case StreamHandle.Kind.Hash:
 					// uses the index only
 					return _readIndex.ReadEventInfoForward_NoCollisions(handle.StreamHash, fromEventNumber, maxCount,
-						scavengePoint.Position).EventInfos;
+						scavengePoint.Position);
 				case StreamHandle.Kind.Id:
 					// uses log to check for hash collisions
 					return _readIndex.ReadEventInfoForward_KnownCollisions(handle.StreamId, fromEventNumber, maxCount,
-						scavengePoint.Position).EventInfos;
+						scavengePoint.Position);
 				default:
 					throw new ArgumentOutOfRangeException(nameof(handle), handle, null);
 			}
 		}
 
-		public EventInfo[] ReadEventInfoBackward(
+		public IndexReadEventInfoResult ReadEventInfoBackward(
 			string streamId,
 			StreamHandle<string> handle,
 			long fromEventNumber,
@@ -39,11 +39,11 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 				case StreamHandle.Kind.Hash:
 					// uses the index only
 					return _readIndex.ReadEventInfoBackward_NoCollisions(handle.StreamHash,_ => streamId,
-						fromEventNumber, maxCount, scavengePoint.Position).EventInfos;
+						fromEventNumber, maxCount, scavengePoint.Position);
 				case StreamHandle.Kind.Id:
 					// uses log to check for hash collisions
 					return _readIndex.ReadEventInfoBackward_KnownCollisions(handle.StreamId, fromEventNumber, maxCount,
-						scavengePoint.Position).EventInfos;
+						scavengePoint.Position);
 				default:
 					throw new ArgumentOutOfRangeException(nameof(handle), handle, null);
 			}

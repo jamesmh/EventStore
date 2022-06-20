@@ -1,15 +1,15 @@
-﻿using EventStore.Core.Data;
+﻿using EventStore.Core.Services.Storage.ReaderIndex;
 
 namespace EventStore.Core.TransactionLog.Scavenging {
 	public interface IIndexReaderForAccumulator<TStreamId> {
 		//qq maxposition  / positionlimit instead of scavengepoint?
-		EventInfo[] ReadEventInfoForward(
+		IndexReadEventInfoResult ReadEventInfoForward(
 			StreamHandle<TStreamId> handle,
 			long fromEventNumber,
 			int maxCount,
 			ScavengePoint scavengePoint);
 
-		EventInfo[] ReadEventInfoBackward(
+		IndexReadEventInfoResult ReadEventInfoBackward(
 			TStreamId streamId,
 			StreamHandle<TStreamId> handle,
 			long fromEventNumber,

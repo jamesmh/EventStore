@@ -15,16 +15,19 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 		private readonly Func<int, byte[]> _getBuffer;
 		private readonly Action _releaseBuffer;
 		private readonly ReusableObject<PrepareLogRecordView> _reusablePrepareView;
+		private readonly int _chunkSize;
 
 		public ChunkReaderForAccumulator(
 			TFChunkManager manager,
 			IMetastreamLookup<TStreamId> metastreamLookup,
 			IStreamIdConverter<TStreamId> streamIdConverter,
-			ICheckpoint replicationChk) {
+			ICheckpoint replicationChk,
+			int chunkSize) {
 			_manager = manager;
 			_metaStreamLookup = metastreamLookup;
 			_streamIdConverter = streamIdConverter;
 			_replicationChk = replicationChk;
+			_chunkSize = chunkSize;
 
 			var reusableRecordBuffer = new ReusableBuffer(8192);
 
@@ -39,17 +42,22 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 			ReusableObject<RecordForAccumulator<TStreamId>.MetadataStreamRecord> metadataStreamRecord,
 			ReusableObject<RecordForAccumulator<TStreamId>.TombStoneRecord> tombStoneRecord) {
 			var chunk = _manager.GetChunk(logicalChunkNumber);
-			long globalStartPos = chunk.ChunkHeader.ChunkStartPosition;
-			long localPos = 0L;
+			long chunkStartPos = (long)_chunkSize * logicalChunkNumber;
+			long chunkEndPos = (long)_chunkSize * (logicalChunkNumber + 1);
+			long nextPos = chunkStartPos;
 
 			var replicationChk = _replicationChk.ReadNonFlushed();
 
 			while (true) {
-				if (globalStartPos + localPos > replicationChk)
+				if (nextPos >= chunkEndPos) // reached the end of this logical chunk
+					break;
+
+				if (nextPos > replicationChk)
 					throw new InvalidOperationException(
-						$"Attempt to read at position: {globalStartPos + localPos} which is after the " +
+						$"Attempt to read at position: {nextPos} which is after the " +
 						$"replication checkpoint: {replicationChk}.");
 
+				var localPos = chunk.ChunkHeader.GetLocalLogPosition(nextPos);
 				var result = chunk.TryReadClosestForwardRaw(localPos, _getBuffer);
 
 				if (!result.Success)
@@ -80,7 +88,7 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 							$"Unexpected log record type: {result.RecordType}");
 				}
 
-				localPos = result.NextPosition;
+				nextPos = chunk.ChunkHeader.GetGlobalLogPosition(result.NextPosition);
 				_releaseBuffer();
 			}
 		}

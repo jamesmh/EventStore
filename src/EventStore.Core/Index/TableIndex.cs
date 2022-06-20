@@ -650,6 +650,88 @@ namespace EventStore.Core.Index {
 			return false;
 		}
 
+		public bool TryGetNextEntry(string streamId, long afterVersion, out IndexEntry entry) {
+			ulong stream = CreateHash(streamId);
+			return TryGetNextEntry(stream, afterVersion, out entry);
+		}
+
+		public bool TryGetNextEntry(ulong stream, long afterVersion, out IndexEntry entry) {
+			var counter = 0;
+			while (counter < 5) {
+				counter++;
+				try {
+					return TryGetNextEntryInternal(stream, afterVersion, out entry);
+				} catch (FileBeingDeletedException) {
+					Log.Trace("File being deleted.");
+				} catch (MaybeCorruptIndexException e) {
+					ForceIndexVerifyOnNextStartup();
+					throw e;
+				}
+			}
+
+			throw new InvalidOperationException("Files are locked.");
+		}
+
+		private bool TryGetNextEntryInternal(ulong stream, long afterVersion, out IndexEntry entry) {
+			var awaiting = _awaitingMemTables;
+
+			foreach (var t in awaiting) {
+				if(t.IsFromIndexMap) continue;
+				if (t.Table.TryGetNextEntry(stream, afterVersion, out entry))
+					return true;
+			}
+
+			var map = _indexMap;
+			foreach (var table in map.InOrder()) {
+				if (table.TryGetNextEntry(stream, afterVersion, out entry))
+					return true;
+			}
+
+			entry = InvalidIndexEntry;
+			return false;
+		}
+
+		public bool TryGetPreviousEntry(string streamId, long beforeVersion, out IndexEntry entry) {
+			ulong stream = CreateHash(streamId);
+			return TryGetPreviousEntry(stream, beforeVersion, out entry);
+		}
+
+		public bool TryGetPreviousEntry(ulong stream, long beforeVersion, out IndexEntry entry) {
+			var counter = 0;
+			while (counter < 5) {
+				counter++;
+				try {
+					return TryGetPreviousEntryInternal(stream, beforeVersion, out entry);
+				} catch (FileBeingDeletedException) {
+					Log.Trace("File being deleted.");
+				} catch (MaybeCorruptIndexException e) {
+					ForceIndexVerifyOnNextStartup();
+					throw e;
+				}
+			}
+
+			throw new InvalidOperationException("Files are locked.");
+		}
+
+		private bool TryGetPreviousEntryInternal(ulong stream, long beforeVersion, out IndexEntry entry) {
+			var awaiting = _awaitingMemTables;
+
+			foreach (var t in awaiting) {
+				if(t.IsFromIndexMap) continue;
+				if (t.Table.TryGetPreviousEntry(stream, beforeVersion, out entry))
+					return true;
+			}
+
+			var map = _indexMap;
+			foreach (var table in map.InOrder()) {
+				if (table.TryGetPreviousEntry(stream, beforeVersion, out entry))
+					return true;
+			}
+
+			entry = InvalidIndexEntry;
+			return false;
+		}
+
 		//qqq limit is quite dangerous because it prevents a full search of the tables.
 		// whatever we get back from a table will be  for the right stream hash and within the version ranges
 		// and it will definitely be in order. but if limit is set higher we might get extra duplicates

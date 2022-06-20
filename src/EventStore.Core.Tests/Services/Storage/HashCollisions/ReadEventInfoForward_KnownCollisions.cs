@@ -50,6 +50,7 @@ namespace EventStore.Core.Tests.Services.Storage.HashCollisions {
 					long.MaxValue);
 
 				Assert.AreEqual(0, result.EventInfos.Length);
+				Assert.True(result.IsEndOfStream);
 			}
 		}
 
@@ -71,6 +72,7 @@ namespace EventStore.Core.Tests.Services.Storage.HashCollisions {
 
 				Assert.AreEqual(1, result.EventInfos.Length);
 				CheckResult(new[] { _event }, result);
+				Assert.AreEqual(int.MaxValue, result.NextEventNumber);
 
 				result = ReadIndex.ReadEventInfoForward_KnownCollisions(
 					Stream,
@@ -79,6 +81,7 @@ namespace EventStore.Core.Tests.Services.Storage.HashCollisions {
 					long.MaxValue);
 
 				CheckResult(new EventRecord[] { }, result);
+				Assert.True(result.IsEndOfStream);
 
 				result = ReadIndex.ReadEventInfoForward_KnownCollisions(
 					CollidingStream,
@@ -88,6 +91,7 @@ namespace EventStore.Core.Tests.Services.Storage.HashCollisions {
 
 				Assert.AreEqual(1, result.EventInfos.Length);
 				CheckResult(new[] { _collidingEvent }, result);
+				Assert.AreEqual(int.MaxValue, result.NextEventNumber);
 
 				result = ReadIndex.ReadEventInfoForward_KnownCollisions(
 					CollidingStream,
@@ -96,7 +100,7 @@ namespace EventStore.Core.Tests.Services.Storage.HashCollisions {
 					long.MaxValue);
 
 				CheckResult(new EventRecord[] { }, result);
-
+				Assert.True(result.IsEndOfStream);
 			}
 		}
 
@@ -129,6 +133,10 @@ namespace EventStore.Core.Tests.Services.Storage.HashCollisions {
 						long.MaxValue);
 
 					CheckResult(_events.Skip(fromEventNumber).ToArray(), result);
+					if (fromEventNumber > 3)
+						Assert.True(result.IsEndOfStream);
+					else
+						Assert.AreEqual((long) fromEventNumber + int.MaxValue, result.NextEventNumber);
 				}
 			}
 
@@ -142,6 +150,10 @@ namespace EventStore.Core.Tests.Services.Storage.HashCollisions {
 						long.MaxValue);
 
 					CheckResult(_events.Skip(fromEventNumber).Take(2).ToArray(), result);
+					if (fromEventNumber > 3)
+						Assert.True(result.IsEndOfStream);
+					else
+						Assert.AreEqual((long) fromEventNumber + 2, result.NextEventNumber);
 				}
 			}
 
@@ -155,6 +167,7 @@ namespace EventStore.Core.Tests.Services.Storage.HashCollisions {
 						_events[fromEventNumber + 1].LogPosition);
 
 					CheckResult(_events.Skip(fromEventNumber).Take(1).ToArray(), result);
+					Assert.AreEqual((long) fromEventNumber + int.MaxValue, result.NextEventNumber);
 				}
 			}
 		}
@@ -180,6 +193,19 @@ namespace EventStore.Core.Tests.Services.Storage.HashCollisions {
 					long.MaxValue);
 
 				CheckResult(_events.ToArray(), result);
+				Assert.AreEqual(int.MaxValue, result.NextEventNumber);
+			}
+
+			[Test]
+			public void next_event_number_set_correctly() {
+				var result = ReadIndex.ReadEventInfoForward_KnownCollisions(
+					Stream,
+					2,
+					int.MaxValue,
+					long.MaxValue);
+
+				Assert.AreEqual(0, result.EventInfos.Length);
+				Assert.AreEqual(EventNumber.DeletedStream, result.NextEventNumber);
 			}
 
 			[Test]
@@ -192,6 +218,7 @@ namespace EventStore.Core.Tests.Services.Storage.HashCollisions {
 
 				Assert.AreEqual(1, result.EventInfos.Length);
 				Assert.AreEqual(EventNumber.DeletedStream, result.EventInfos[0].EventNumber);
+				Assert.True(result.IsEndOfStream);
 			}
 		}
 
@@ -210,8 +237,9 @@ namespace EventStore.Core.Tests.Services.Storage.HashCollisions {
 				WriteSingleEvent(CollidingStream, 2, string.Empty);
 
 				// MemTable
-				_events.Add(WriteSingleEvent(Stream, 7, string.Empty));
+				_events.Add(WriteSingleEvent(Stream, 11, string.Empty));
 				WriteSingleEvent(CollidingStream, 3, string.Empty);
+				WriteSingleEvent(CollidingStream1, 15, string.Empty);
 			}
 
 			[Test]
@@ -223,22 +251,25 @@ namespace EventStore.Core.Tests.Services.Storage.HashCollisions {
 					long.MaxValue);
 
 				CheckResult(_events.ToArray(), result);
+				Assert.AreEqual(int.MaxValue, result.NextEventNumber);
 
 				result = ReadIndex.ReadEventInfoForward_KnownCollisions(
 					Stream,
 					0,
-					4,
+					3,
 					long.MaxValue);
 
 				CheckResult(_events.Take(1).ToArray(), result);
+				Assert.AreEqual(3, result.NextEventNumber);
 
 				result = ReadIndex.ReadEventInfoForward_KnownCollisions(
 					Stream,
-					4,
+					3,
 					int.MaxValue,
 					long.MaxValue);
 
 				CheckResult(_events.Skip(1).ToArray(), result);
+				Assert.AreEqual((long ) 3 + int.MaxValue, result.NextEventNumber);
 
 				result = ReadIndex.ReadEventInfoForward_KnownCollisions(
 					Stream,
@@ -247,6 +278,34 @@ namespace EventStore.Core.Tests.Services.Storage.HashCollisions {
 					long.MaxValue);
 
 				CheckResult(_events.Skip(1).Take(2).ToArray(), result);
+				Assert.AreEqual(7, result.NextEventNumber);
+
+				result = ReadIndex.ReadEventInfoForward_KnownCollisions(
+					Stream,
+					7,
+					3,
+					long.MaxValue);
+
+				Assert.AreEqual(0, result.EventInfos.Length);
+				Assert.AreEqual(11, result.NextEventNumber);
+
+				result = ReadIndex.ReadEventInfoForward_KnownCollisions(
+					Stream,
+					12,
+					1,
+					long.MaxValue);
+
+				Assert.AreEqual(0, result.EventInfos.Length);
+				Assert.AreEqual(15, result.NextEventNumber); // from colliding stream, but doesn't matter much
+
+				result = ReadIndex.ReadEventInfoForward_KnownCollisions(
+					Stream,
+					12,
+					int.MaxValue,
+					long.MaxValue);
+
+				Assert.AreEqual(0, result.EventInfos.Length);
+				Assert.True(result.IsEndOfStream);
 			}
 		}
 
@@ -286,6 +345,7 @@ namespace EventStore.Core.Tests.Services.Storage.HashCollisions {
 						.OrderBy(x => x.EventNumber)
 						.ToArray(),
 					result);
+				Assert.AreEqual(int.MaxValue, result.NextEventNumber);
 			}
 		}
 	}

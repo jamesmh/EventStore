@@ -59,6 +59,22 @@ namespace EventStore.Core.Tests.Services.Storage {
 			return false;
 		}
 
+		public bool TryGetNextEntry(string streamId, long afterVersion, out IndexEntry entry) {
+			throw new NotImplementedException();
+		}
+
+		public bool TryGetNextEntry(ulong stream, long afterVersion, out IndexEntry entry) {
+			throw new NotImplementedException();
+		}
+
+		public bool TryGetPreviousEntry(string streamId, long beforeVersion, out IndexEntry entry) {
+			throw new NotImplementedException();
+		}
+
+		public bool TryGetPreviousEntry(ulong stream, long beforeVersion, out IndexEntry entry) {
+			throw new NotImplementedException();
+		}
+
 		public IEnumerable<IndexEntry> GetRange(string streamId, long startVersion, long endVersion,
 			int? limit = null) {
 			yield break;
