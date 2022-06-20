@@ -551,15 +551,14 @@ namespace EventStore.Core {
 			perSubscrBus.Subscribe<SubscriptionMessage.PersistentSubscriptionTimerTick>(persistentSubscription);
 
 			// STORAGE SCAVENGER
-			IScavengerFactory scavengerFactory;
+			ScavengerFactory scavengerFactory;
 
 			var newScavenge = true;
 			if (newScavenge) {
-				//qq store in index dir?
 				var scavengeDirectory = Path.Combine(indexPath, "scavenging");
 				Directory.CreateDirectory(scavengeDirectory);
 
-				scavengerFactory = new NewScavengerFactory((message, logger) => {
+				scavengerFactory = new ScavengerFactory((message, logger) => {
 					var throttle = new Throttle(
 						TimeSpan.FromMilliseconds(1000),
 						TimeSpan.FromMilliseconds(1000), //qqqqqqq
@@ -567,10 +566,8 @@ namespace EventStore.Core {
 
 					var metastreamLookup = new LogV2SystemStreams();
 					var streamIdConverter = new LogV2StreamIdConverter();
-					var cancellationCheckPeriod = 1024; //qq sensible?
+					var cancellationCheckPeriod = 1024; //qq tuning: sensible?
 
-					//qq iron this out, possibly more needs to be in the logformat, depending on what is
-					// affected by the log format ofc.
 					var longHasher = new CompositeHasher<string>(lowHasher, highHasher);
 					var accumulator = new Accumulator<string>(
 						chunkSize: TFConsts.ChunkSize,
@@ -588,7 +585,7 @@ namespace EventStore.Core {
 						new IndexReaderForCalculator(readIndex),
 						chunkSize: TFConsts.ChunkSize,
 						cancellationCheckPeriod: cancellationCheckPeriod,
-						checkpointPeriod: 32_768, //qq sensible?
+						checkpointPeriod: 32_768, //qq tuning: sensible?
 						throttle: throttle);
 
 					var chunkExecutor = new ChunkExecutor<string, LogRecord>(
@@ -605,12 +602,11 @@ namespace EventStore.Core {
 						backend: new OldScavengeChunkMergerBackend(db: db),
 						throttle: throttle);
 
-					//qq make sure the maxreaders for the pool is high enough to accommodate us
 					var indexExecutor = new IndexExecutor<string>(
 						new IndexScavenger(tableIndex),
 						new ChunkReaderForIndexExecutor(() => new TFReaderLease(readerPool)),
 						unsafeIgnoreHardDeletes: vNodeSettings.UnsafeIgnoreHardDeletes,
-						restPeriod: 32_768, //qq sensible?
+						restPeriod: 32_768, //qq tuning: sensible?
 						throttle: throttle);
 
 					var cleaner = new Cleaner(
@@ -660,7 +656,7 @@ namespace EventStore.Core {
 				});
 
 			} else {
-				scavengerFactory = new NewScavengerFactory((message, logger) =>
+				scavengerFactory = new ScavengerFactory((message, logger) =>
 					new OldScavenger(
 						alwaysKeepScaveged: vNodeSettings.AlwaysKeepScavenged,
 						mergeChunks: !vNodeSettings.DisableScavengeMerging,

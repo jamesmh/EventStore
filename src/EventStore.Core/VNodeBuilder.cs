@@ -914,10 +914,9 @@ namespace EventStore.Core {
 			return this;
 		}
 
-		//qq word this better
 		/// <summary>
-		/// The percentage (1-100) of time that scavenge will run for. Scavenge will
-		/// take regular rests to reduce load on the node to this percentage.
+		/// The average percentage (1-100) of time that scavenge will actively run for. When less than
+		/// 100, scavenge will take rests to reduce load on the node.
 		/// </summary>
 		/// <returns>A <see cref="VNodeBuilder"/> with the options set</returns>
 		public VNodeBuilder WithScavengeThrottlePercent(int scavengeThrottlePercent) {

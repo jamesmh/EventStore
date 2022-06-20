@@ -198,8 +198,8 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 				// read in slices because the stream might be huge.
 				// note: when the handle is a hash the ReadEventInfoForward call is index-only
 				// note: the event infos are not necessarily contiguous
-				//qq limit the read to the scavengepoint too?
-				//qqq ReadEventInfoForward deduplicates according to skipindexscanonread
+				//qq review: limit the read to the scavengepoint too?
+				//qq review: ReadEventInfoForward deduplicates according to skipindexscanonread
 				// (but currently only if there is a collision).
 				var slice = _index.ReadEventInfoForward(
 					originalStreamHandle,

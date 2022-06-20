@@ -409,19 +409,6 @@ namespace EventStore.Core.TransactionLog.Scavenging.Sqlite {
 		// may cause the row to reappear later in the select. we are ordering the select by key so in
 		// our case it seems doubtful that it will reappear because it would violate the orderby clause,
 		// but in the worse case we will just duplicate the effort but otherwise no harm is done.
-		//
-		// todo: we could measure to see whether an additional index on (status, key) would help.
-		//  - it would slow down inserts/updates to maintain the index
-		//  - it would speed up iteration, especially if there are lots of archived records
-		//  - the orderby might need to change to (status, key) in order to use the index
-		//    which might have implications for the sqlite docs comments above
-		//  - 
-
-		//qq in general we want to lean towards reads being faster because we will read more than we will write.
-		// because we will keep re-reading the data in subsequent scavenges.
-		//  but consider/measure whether it is worth clustering on rowid instead of the key, and having a separate
-		//  index as the key. i _think_ this can be achieved by simply using INT instead of INTEGER as the key type.
-		//  it would make inserts faster but reads slower. and the database bigger.
 		private class FromCheckpointCommand {
 			private readonly SqliteBackend _sqlite;
 			private readonly SqliteCommand _cmd;
@@ -469,7 +456,7 @@ namespace EventStore.Core.TransactionLog.Scavenging.Sqlite {
 						discardPoint,
 						maybeDiscardPoint,
 						status,
-					    key
+						key
 					FROM {tableName}
 					ORDER BY key";
 
@@ -505,7 +492,7 @@ namespace EventStore.Core.TransactionLog.Scavenging.Sqlite {
 						discardPoint,
 						maybeDiscardPoint,
 						status,
-					    key
+						key
 					FROM {tableName}
 					WHERE status = {(int)CalculationStatus.Active}
 					ORDER BY key";

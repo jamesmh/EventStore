@@ -35,7 +35,6 @@ namespace EventStore.Core.TransactionLog.Chunks {
 					return false;
 				Log.Debug("Optimizing chunk {chunk} for fast merge...", chunk.FileName);
 				chunk.OptimizeExistsAt();
-				//qq this actually might not have worked, probably log something
 				return true;
 			};
 

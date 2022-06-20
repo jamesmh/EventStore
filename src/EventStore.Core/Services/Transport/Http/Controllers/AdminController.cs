@@ -105,6 +105,11 @@ namespace EventStore.Core.Services.Transport.Http.Controllers {
 					return;
 				}
 
+				if (x != 100 && threads > 1) {
+					SendBadRequest(entity, "throttlePercent must be 100 for a multi-threaded scavenge");
+					return;
+				}
+
 				throttlePercent = x;
 			}
 

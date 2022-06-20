@@ -34,7 +34,7 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 		// Record in metadata stream
 		public class MetadataStreamRecord : RecordForAccumulator<TStreamId> {
 			public StreamMetadata Metadata {
-				//qq potential for .ToArray() optimization?
+				// todo: in the forward port we may be able to avoid the ToArray() call
 				get { return _metadata ?? (_metadata = StreamMetadata.TryFromJsonBytes(_prepareView.Version, _prepareView.Data.ToArray())); }
 			}
 			private StreamMetadata _metadata;

@@ -5,9 +5,6 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 	public class ChunkReaderForIndexExecutor : IChunkReaderForIndexExecutor<string> {
 		private readonly Func<TFReaderLease> _tfReaderFactory;
 
-		//qq might want to hold the reader for longer than one operation.
-		// but this is only called when the hash for htis position is a collision, so rare enough that
-		// it probably doesn't matter.
 		public ChunkReaderForIndexExecutor(Func<TFReaderLease> tfReaderFactory) {
 			_tfReaderFactory = tfReaderFactory;
 		}

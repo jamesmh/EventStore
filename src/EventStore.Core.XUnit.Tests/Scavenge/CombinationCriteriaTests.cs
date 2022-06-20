@@ -6,7 +6,7 @@ using static EventStore.Core.XUnit.Tests.Scavenge.StreamMetadatas;
 
 namespace EventStore.Core.XUnit.Tests.Scavenge {
 	public class CombinationCriteriaTests : SqliteDbPerTest<CombinationCriteriaTests> {
-		//qq need more of these, check that the criteria work well in different combinations
+		//qq testing: need more of these, check that the criteria work well in different combinations
 		// and set in different orders
 		[Fact]
 		public async Task maxcount_then_tombstone() {

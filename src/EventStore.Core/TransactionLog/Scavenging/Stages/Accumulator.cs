@@ -230,12 +230,11 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 
 		// For every* record in an original stream we need to see if its stream collides.
 		// its not so bad, because we have a cache
-		// * maybe not every.. beyond a certain point we only need to check records with eventnumber 0
+		// * maybe not every.. once we are accumulating records that have never been scavenged then
+		// we only need to check records with eventnumber 0
 		//    (and perhaps -1 to cover transactions)
-		//    but doing so has some complications
-		//      - have to identify the point at which we can switch to just checking 0s
-		//qq    - is it possible that a new stream starts at non-zero without already having been checked
-		//        before? seems unlikely.. 
+		//    but we don't know when this starts. and we have to make sure it is impossible for a new
+		//    streams first event is anything other than 0.
 		private static void ProcessOriginalStreamRecord(
 			RecordForAccumulator<TStreamId>.OriginalStreamRecord record,
 			IScavengeStateForAccumulator<TStreamId> state) {

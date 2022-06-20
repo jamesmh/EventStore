@@ -44,9 +44,6 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 			// or anything beyond the scavenge point, so we limit by that.
 
 			// respect the scavenge point
-			//qq possibly it should be impossible to get here because we should have run into
-			// LastEventInStream (before scavengepoint) by now, unless there wasn't one in the range we
-			// read..
 			if (IsOnOrAfterScavengePoint) {
 				return DiscardDecision.Keep;
 			}

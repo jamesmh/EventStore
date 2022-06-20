@@ -59,7 +59,6 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 
 		public DiscardPoint MaxCountDiscardPoint =>
 			OriginalStreamData.MaxCount.HasValue
-				//qq be careful not to call this with long.max
 				? DiscardPoint.DiscardIncluding(LastEventNumber - OriginalStreamData.MaxCount.Value)
 				: DiscardPoint.KeepAll;
 

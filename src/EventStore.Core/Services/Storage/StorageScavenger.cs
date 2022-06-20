@@ -18,7 +18,7 @@ namespace EventStore.Core.Services.Storage {
 		IHandle<SystemMessage.StateChangeMessage> {
 
 		private readonly ITFChunkScavengerLogManager _logManager;
-		private readonly IScavengerFactory _scavengerFactory;
+		private readonly ScavengerFactory _scavengerFactory;
 		private readonly object _lock = new object();
 
 		private IScavenger _currentScavenge;
@@ -26,7 +26,7 @@ namespace EventStore.Core.Services.Storage {
 
 		public StorageScavenger(
 			ITFChunkScavengerLogManager logManager,
-			IScavengerFactory scavengerFactory) {
+			ScavengerFactory scavengerFactory) {
 
 			Ensure.NotNull(logManager, "logManager");
 			Ensure.NotNull(scavengerFactory, "scavengerFactory");

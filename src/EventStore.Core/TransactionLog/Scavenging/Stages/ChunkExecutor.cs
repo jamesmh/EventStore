@@ -131,8 +131,8 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 						if (_threads == 1) {
 							_throttle.Rest(cancellationToken);
 						} else {
-							// doesn't make sense to have lots of threads running and resting,
-							// run fewer threads if the load is too high.
+							// running a multithreaded scavenge with throttle < 100
+							// is rejected by the AdminController.
 						}
 					});
 			} finally {
@@ -210,7 +210,6 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 				var prepareRecord = new RecordForExecutor<TStreamId, TRecord>.Prepare();
 
 				foreach (var isPrepare in sourceChunk.ReadInto(nonPrepareRecord, prepareRecord)) {
-					//qq add a test to make sure we keep the system records
 					if (isPrepare) {
 						if (ShouldDiscard(state, scavengePoint, prepareRecord)) {
 							discardedCount++;
@@ -297,7 +296,6 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 				return false;
 			}
 
-			//qq consider how/where to cache the this stuff per stream for quick lookups
 			var details = GetStreamExecutionDetails(
 				state,
 				record.StreamId);

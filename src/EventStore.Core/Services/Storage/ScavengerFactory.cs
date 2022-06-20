@@ -6,32 +6,18 @@ using EventStore.Core.TransactionLog.Chunks;
 using EventStore.Core.TransactionLog.Scavenging;
 
 namespace EventStore.Core.Services.Storage {
-	// This abstracts the scavenge implementation away from the StorageScavenger
 	// The resulting scavenger is used for one continuous run. If it is cancelled or
 	// completed then starting scavenge again will instantiate another scavenger
 	// with a different id.
-	interface IScavengerFactory {
-		IScavenger Create(
-			ClientMessage.ScavengeDatabase message,
-			ITFChunkScavengerLog logger);
-	}
-
-	//qqqq rename, this factory covers new and old
-	public class NewScavengerFactory : IScavengerFactory {
+	public class ScavengerFactory {
 		private readonly Func<ClientMessage.ScavengeDatabase, ITFChunkScavengerLog, IScavenger> _create;
 
-		public NewScavengerFactory(
-			Func<ClientMessage.ScavengeDatabase, ITFChunkScavengerLog, IScavenger> create) {
-
+		public ScavengerFactory(Func<ClientMessage.ScavengeDatabase, ITFChunkScavengerLog, IScavenger> create) {
 			_create = create;
 		}
 
-		public IScavenger Create(
-			ClientMessage.ScavengeDatabase message,
-			ITFChunkScavengerLog logger) {
-
-			return _create(message, logger);
-		}
+		public IScavenger Create(ClientMessage.ScavengeDatabase message, ITFChunkScavengerLog logger) =>
+			_create(message, logger);
 	}
 
 	public class OldScavenger : IScavenger {

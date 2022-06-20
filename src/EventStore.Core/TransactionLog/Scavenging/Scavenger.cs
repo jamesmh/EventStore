@@ -116,8 +116,6 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 			Stopwatch stopwatch,
 			CancellationToken cancellationToken) {
 
-			//qq consider exceptions (cancelled, and others)
-
 			// each component can be started with either
 			//  (i) a checkpoint that it wrote previously (it will continue from there)
 			//  (ii) fresh from a given scavengepoint
@@ -238,7 +236,6 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 				} else {
 					// the latest scavengepoint is the prev scavenge point, so create a new one
 					var expectedVersion = prevScavengePoint.EventNumber;
-					//qq test that if this fails the scavenge terminates with an error
 					Log.Trace(
 						"SCAVENGING: creating the next scavenge point: {scavengePointNumber}",
 						expectedVersion + 1);
