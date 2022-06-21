@@ -22,6 +22,8 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 			};
 		}
 
+		//qq what does / should this return if there are events in the stream but only after the scavenge
+		// point? probably the same as if the stream doesn't exist at all.
 		public long GetLastEventNumber(StreamHandle<string> handle, ScavengePoint scavengePoint) {
 			switch (handle.Kind) {
 				case StreamHandle.Kind.Hash:

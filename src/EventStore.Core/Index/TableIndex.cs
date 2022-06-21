@@ -732,11 +732,11 @@ namespace EventStore.Core.Index {
 			return false;
 		}
 
-		//qqq limit is quite dangerous because it prevents a full search of the tables.
+		//qq old: limit is quite dangerous because it prevents a full search of the tables.
 		// whatever we get back from a table will be  for the right stream hash and within the version ranges
 		// and it will definitely be in order. but if limit is set higher we might get extra duplicates
 		// which might override records that we would have returned with limit set lower.
-		//qq which probably means we need to look at the calls with limit really carefully - dont do something like pass maxcount from the client in as the limit.
+		//qq old: which probably means we need to look at the calls with limit really carefully - dont do something like pass maxcount from the client in as the limit.
 		public IEnumerable<IndexEntry> GetRange(string streamId, long startVersion, long endVersion,
 			int? limit = null) => GetRange(CreateHash(streamId), startVersion, endVersion, limit);
 
@@ -757,7 +757,7 @@ namespace EventStore.Core.Index {
 			throw new InvalidOperationException("Files are locked.");
 		}
 
-		//qq what does this actually return? a readonly list of IndexEntries in descending order.
+		//qq old: what does this actually return? a readonly list of IndexEntries in descending order.
 		// this usually means the version is descending in the ouput, but the details are a bit complicated:
 		// it used to be always in IndexEntry default order (streamhash, version, position) descending
 		//  which means newest first. if we have a mix of 32bit and 64bit indexes then the same stream will have two different hashes
@@ -769,7 +769,7 @@ namespace EventStore.Core.Index {
 		//   1. resolve hash collisions
 		//   2. deal with one stream that has multiple events with the same version bug (for which the results here could be out of version order and will need sorting by version and then deduplicating.
 		// 
-		//qq what is limit here, in teh end it is the limit that gets passed to ptable.readforward.
+		//qq old: what is limit here, in teh end it is the limit that gets passed to ptable.readforward.
 		// it is the maximum number of records that _each ptable_ will return, it's the HIGHER versions that they will return and leave behind the lower.
 		private IEnumerable<IndexEntry> GetRangeInternal(ulong hash, long startVersion, long endVersion,
 			int? limit = null) {
@@ -808,7 +808,7 @@ namespace EventStore.Core.Index {
 				// if different position then definitely not a duplicate
 				// but just being a different stream doesn't stop it being a duplicate. it has to be a different stream and version to not be a duplicate.
 				// so if it is the same stream OR same version it can be a duplicate if it has the same position.
-				//qq so we are saying we if have two entries that point to the same position (but why would this ever happen??)
+				//qq old: so we are saying we if have two entries that point to the same position (but why would this ever happen??)
 				//   if they are for the same stream hash but different version, then remove it as a duplicate - afaik this isn't possible??
 				//   if they are for the same version but different stream hash, then remove it as a duplicate - 32bit vs 64bit could explain why perhaps
 				//   different version and different strema hash: keep it even though it is for same position.

@@ -41,6 +41,8 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 		//  if it doesn't exist before the scavenge point but does later then
 		//    there is nothing to remove as part of this scavenge, but we need to be careful
 		//    not to remove the later events.
+		// check the three places that refer to this, they might need to explicitly check for ExpectedVersion.NoStream
+		// at a glance they look correct already but it might be nice to be explicit.
 		private long? _lastEventNumber;
 		public long LastEventNumber {
 			get {

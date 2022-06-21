@@ -41,6 +41,8 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 			ReusableObject<RecordForAccumulator<TStreamId>.OriginalStreamRecord> originalStreamRecord,
 			ReusableObject<RecordForAccumulator<TStreamId>.MetadataStreamRecord> metadataStreamRecord,
 			ReusableObject<RecordForAccumulator<TStreamId>.TombStoneRecord> tombStoneRecord) {
+
+			// the physical chunk might contain several logical chunks, we are only interested in one of them
 			var chunk = _manager.GetChunk(logicalChunkNumber);
 			long chunkStartPos = (long)_chunkSize * logicalChunkNumber;
 			long chunkEndPos = (long)_chunkSize * (logicalChunkNumber + 1);
@@ -52,6 +54,9 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 				if (nextPos >= chunkEndPos) // reached the end of this logical chunk
 					break;
 
+				//qq review: i think, in v5 the replication checkpoint points to the beginning of the
+				// last replicated record, but in v21 it points to the beginning of the _next_ record
+				// may need to adjust this inequality in the forward port.
 				if (nextPos > replicationChk)
 					throw new InvalidOperationException(
 						$"Attempt to read at position: {nextPos} which is after the " +
@@ -61,7 +66,7 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 				var result = chunk.TryReadClosestForwardRaw(localPos, _getBuffer);
 
 				if (!result.Success)
-					break;
+					break; //qq review: or should this be an exception
 
 				switch (result.RecordType) {
 					case LogRecordType.Prepare:

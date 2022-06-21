@@ -208,7 +208,7 @@ namespace EventStore.Core.Services.Storage.ReaderIndex {
 						lastEventNumber);
 
 				long startEventNumber = fromEventNumber;
-				long endEventNumber = Math.Min(long.MaxValue, fromEventNumber + maxCount - 1); //qq this overflows
+				long endEventNumber = Math.Min(long.MaxValue, fromEventNumber + maxCount - 1); //qq old: this overflows
 
 				long minEventNumber = 0;
 				if (metadata.MaxCount.HasValue)

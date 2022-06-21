@@ -190,7 +190,9 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 			discardPoint = DiscardPoint.KeepAll;
 			maybeDiscardPoint = DiscardPoint.KeepAll;
 
-			const int maxCount = 100; //qq tuning: what would be sensible? probably pretty large
+			//qq tuning: what would be sensible? probably pretty large
+			// but since the stream could be long, we ought to do rests and cancellation checks in here
+			const int maxCount = 100;
 
 			var first = true;
 
@@ -259,7 +261,7 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 					if (first) {
 						// we didn't find any at all
 						// - the stream might actually be empty
-						// - the stream might have events after the scavenge point and olscavenge
+						// - the stream might have events after the scavenge point and old scavenge
 						//   has removed the ones before
 						// we didn't find anything to discard, so keep everything.
 						discardPoint = DiscardPoint.KeepAll;

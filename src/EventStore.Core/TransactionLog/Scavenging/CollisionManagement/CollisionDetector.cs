@@ -133,6 +133,10 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 			return CollisionResult.NewCollision;
 		}
 
+		//qq review: perhaps this shouldn't return an enumerable, this is only ever used when we
+		// expect there to be exactly one user of this hash
+		// not certain this should be on this class, it might be enough for the scavengestate to
+		// query the hashes directly
 		public IEnumerable<T> LookupStreamIds(ulong streamHash) {
 			if (!_hashUsers.TryGetValue(streamHash, out var stream))
 				return default;

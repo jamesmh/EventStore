@@ -329,7 +329,7 @@ namespace EventStore.Core.Index {
 			long droppedCount;
 
 			try {
-				//qq the output file is opened with a large buffer and for sequential scan, but the input is not.
+				//qq: old the output file is opened with a large buffer and for sequential scan, but the input is not.
 				// maybe it should be?
 				using (var f = new FileStream(outputFile, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None,
 					DefaultSequentialBufferSize, FileOptions.SequentialScan)) {
@@ -550,22 +550,6 @@ namespace EventStore.Core.Index {
 			}
 		}
 
-		// enumerates the IndexEntries in a PTable
-		// there are two modes of operation in here. regular, and upgrading 32 to 64 bit.
-		// - regular
-		//    - _enumerator enumerates through the pTable
-		//    - _list is null
-		//    - _ptableEnumerator is null
-		//    - _firstIteration is unused
-		//    - _lastIteration is unused
-		//    - _upgradeHash is unused
-		//    - _existsAt is unused
-		//    - _readRecord is unused
-		//
-		// - upgrading: when reading a PTableVersions.IndexV1 and writing a higher version, we convert
-		//   the hashes from 32bit to 64bit.
-		//qq its probably ok to upgrade a ptable and scavenge at the same time.. but give this a bit of
-		//thought
 		internal class EnumerableTable : IEnumerator<IndexEntry> {
 			private ISearchTable _ptable;
 			private List<IndexEntry> _list;
