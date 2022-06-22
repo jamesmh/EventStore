@@ -77,7 +77,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge.Sqlite {
 		}
 		
 		[Fact]
-		public void can_set_discard_points_of_non_existing() {
+		public void can_set_discard_point_of_non_existing() {
 			var sut = new SqliteMetastreamScavengeMap<ulong>("DiscardPointNonExisting");
 			sut.Initialize(new SqliteBackend(Fixture.DbConnection));
 
