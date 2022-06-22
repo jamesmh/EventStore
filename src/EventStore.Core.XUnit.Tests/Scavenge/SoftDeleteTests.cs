@@ -14,7 +14,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 			// before, otherwise we could accidentally scavenge the new stream.
 			// the important point is that the scavenge point cant 'appear' to be between the
 			// new records and the new metadata. this could cause problems any time
-			// the scavenge point operates as if it were in the middle of events supposed to bewritten
+			// the scavenge point operates as if it were in the middle of events supposed to be written
 			// transactionally.
 			var t = 0;
 			await new Scenario()
