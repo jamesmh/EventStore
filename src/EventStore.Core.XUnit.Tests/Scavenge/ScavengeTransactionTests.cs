@@ -23,7 +23,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 		}
 
 		[Fact]
-		public void CanCommitThenBegin() {
+		public void can_commit_then_begin() {
 			var storage = new InMemoryScavengeMap<Unit, ScavengeCheckpoint>();
 			var backend = new MockTransactionFactory();
 			var sut = new TransactionManager<int>(backend, storage);
@@ -58,7 +58,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 		}
 
 		[Fact]
-		public void CanRollbackThenBegin() {
+		public void can_rollback_then_begin() {
 			var backend = new MockTransactionFactory();
 			var sut = new TransactionManager<int>(
 				backend,
@@ -88,7 +88,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 		}
 
 		[Fact]
-		public void CannotBeginTwice() {
+		public void cannot_begin_twice() {
 			var sut = new TransactionManager<int>(
 				new MockTransactionFactory(),
 				new InMemoryScavengeMap<Unit, ScavengeCheckpoint>());
@@ -101,7 +101,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 		}
 
 		[Fact]
-		public void CannotCommitTwice() {
+		public void cannot_commit_twice() {
 			var sut = new TransactionManager<int>(
 				new MockTransactionFactory(),
 				new InMemoryScavengeMap<Unit, ScavengeCheckpoint>());
@@ -115,7 +115,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 		}
 
 		[Fact]
-		public void CannotCommitThenRollback() {
+		public void cannot_commit_then_rollback() {
 			var sut = new TransactionManager<int>(
 				new MockTransactionFactory(),
 				new InMemoryScavengeMap<Unit, ScavengeCheckpoint>());
@@ -129,7 +129,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 		}
 
 		[Fact]
-		public void CannotRollbackTwice() {
+		public void cannot_rollback_twice() {
 			var sut = new TransactionManager<int>(
 				new MockTransactionFactory(),
 				new InMemoryScavengeMap<Unit, ScavengeCheckpoint>());
@@ -143,7 +143,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 		}
 
 		[Fact]
-		public void CannotRollbackThenCommit() {
+		public void cannot_rollback_then_commit() {
 			var sut = new TransactionManager<int>(
 				new MockTransactionFactory(),
 				new InMemoryScavengeMap<Unit, ScavengeCheckpoint>());
@@ -157,7 +157,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 		}
 
 		[Fact]
-		public void CannotCommitWithoutBeginning() {
+		public void cannot_commit_without_beginning() {
 			var sut = new TransactionManager<int>(
 				new MockTransactionFactory(),
 				new InMemoryScavengeMap<Unit, ScavengeCheckpoint>());
@@ -168,7 +168,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 		}
 
 		[Fact]
-		public void CannotRollbackWithoutBeginning() {
+		public void cannot_rollback_without_beginning() {
 			var sut = new TransactionManager<int>(
 				new MockTransactionFactory(),
 				new InMemoryScavengeMap<Unit, ScavengeCheckpoint>());
