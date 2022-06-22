@@ -12,7 +12,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 		public async Task undelete_when_soft_delete_across_chunk_boundary() {
 			// accumulation has to go up to the scavenge point and not stop at the end of the chunk
 			// before, otherwise we could accidentally scavenge the new stream.
-			// the important point is that the scavenge point cant 'appear' to be between the
+			// the important point is that the scavenge point can't 'appear' to be between the
 			// new records and the new metadata. this could cause problems any time
 			// the scavenge point operates as if it were in the middle of events supposed to be written
 			// transactionally.
