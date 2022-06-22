@@ -15,7 +15,7 @@ namespace EventStore.Core.XUnit.Tests {
 		}
 
 		~DirectoryFixture() {
-			DirectoryDeleter.TryForceDeleteDirectoryAsync(Directory).Wait();	
+			DirectoryDeleter.TryForceDeleteDirectoryAsync(Directory).Wait();
 		}
 
 		public string GetTempFilePath() {
