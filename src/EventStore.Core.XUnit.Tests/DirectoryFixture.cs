@@ -31,7 +31,7 @@ namespace EventStore.Core.XUnit.Tests {
 		}
 
 		public async Task DisposeAsync() {
-			await DirectoryDeleter.TryForceDeleteDirectoryAsync(Directory);	
+			await DirectoryDeleter.TryForceDeleteDirectoryAsync(Directory);
 #pragma warning disable CA1816 // Dispose methods should call SuppressFinalize
 			GC.SuppressFinalize(this);
 #pragma warning restore CA1816 // Dispose methods should call SuppressFinalize
