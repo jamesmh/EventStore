@@ -66,6 +66,31 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 		}
 
 		[Fact]
+		public async Task tombstone_with_meta_collision() {
+			var t = 0;
+			await new Scenario()
+				.WithDbPath(Fixture.Directory)
+				.WithDb(x => x
+					.Chunk(
+						// ab-1 has metadata but not tombstone
+						Rec.Write(t++, "$$ab-1", metadata: MaxCount1),
+						Rec.Write(t++, "ab-1"),
+						Rec.Write(t++, "ab-1"))
+					.Chunk(
+						// ab-2 is tombstoned
+						Rec.Write(t++, "ab-2"),
+						Rec.Write(t++, "ab-2"),
+						Rec.CommittedDelete(t++, "ab-2"))
+					.Chunk(ScavengePointRec(t++)))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
+				.RunAsync(x => new[] {
+					x.Recs[0].KeepIndexes(0, 2), // "ab-1" keep last event and metadata
+					x.Recs[1].KeepIndexes(2), // "ab-2" keeps tombstone
+					x.Recs[2],
+				});
+		}
+
+		[Fact]
 		public async Task tombstone_in_metadata_stream_not_supported() {
 			// eventstore refuses denies access to write such a tombstone in the first place,
 			// including in ESv5

@@ -333,8 +333,9 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 			state.SetOriginalStreamTombstone(originalStreamId);
 
 			var metastreamId = _metastreamLookup.MetaStreamOf(originalStreamId);
+			// required before we do state operations with the metastreamId
+			state.DetectCollisions(metastreamId);
 			state.SetMetastreamTombstone(metastreamId);
-			state.DetectCollisions(metastreamId); // required before we grab a stream handle below
 
 			// unlike metadata, a tombstone still takes effect even it is out of order in the log
 			// (because the index will still bless it with a max event number in the indexentry)

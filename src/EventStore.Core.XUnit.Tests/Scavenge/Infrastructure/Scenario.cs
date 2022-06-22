@@ -440,6 +440,10 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 
 						RegisterUse(prepare.EventStreamId);
 
+						if (prepare.Flags.HasAnyOf(PrepareFlags.StreamDelete)) {
+							RegisterUse(metastreamLookup.MetaStreamOf(prepare.EventStreamId));
+						}
+
 						if (metastreamLookup.IsMetaStream(prepare.EventStreamId)) {
 							RegisterUse(metastreamLookup.OriginalStreamOf(prepare.EventStreamId));
 						}
