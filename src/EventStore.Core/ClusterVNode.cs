@@ -560,8 +560,8 @@ namespace EventStore.Core {
 
 				scavengerFactory = new ScavengerFactory((message, logger) => {
 					var throttle = new Throttle(
-						TimeSpan.FromMilliseconds(1000),
-						TimeSpan.FromMilliseconds(1000), //qqqqqqq
+						minimumRest: TimeSpan.FromMilliseconds(1000),
+						restLoggingThreshold: TimeSpan.FromMilliseconds(10_000),
 						activePercent: message.ThrottlePercent ?? vNodeSettings.ScavengeThrottlePercent);
 
 					var metastreamLookup = new LogV2SystemStreams();

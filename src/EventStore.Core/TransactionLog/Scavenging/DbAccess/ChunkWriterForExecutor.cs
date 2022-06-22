@@ -7,7 +7,7 @@ using EventStore.Core.TransactionLog.LogRecords;
 
 namespace EventStore.Core.TransactionLog.Scavenging {
 	public class ChunkWriterForExecutor : IChunkWriterForExecutor<string, LogRecord> {
-		const int BatchLength = 1000;
+		const int BatchLength = 2000;
 		private readonly ChunkManagerForExecutor _manager;
 		private readonly TFChunk _outputChunk;
 		private readonly List<List<PosMap>> _posMapss;
@@ -46,17 +46,15 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 			var posMap = TFChunkScavenger.WriteRecord(_outputChunk, record.Record);
 
 			// add the posmap in memory so we can write it when we complete
-			//qq check this
-			var last = _posMapss[_posMapss.Count - 1];
-			if (last.Count >= BatchLength) {
-				last = new List<PosMap>(capacity: BatchLength);
-				_posMapss.Add(last);
+			var lastBatch = _posMapss[_posMapss.Count - 1];
+			if (lastBatch.Count >= BatchLength) {
+				lastBatch = new List<PosMap>(capacity: BatchLength);
+				_posMapss.Add(lastBatch);
 			}
 
-			last.Add(posMap);
+			lastBatch.Add(posMap);
 
-			//qqqqq ocasionaly flushes the chunk, check this
-			// based on TFChunkScavenger.ScavengeChunk
+			// ocasionaly flush the chunk. based on TFChunkScavenger.ScavengeChunk
 			var currentPage = _outputChunk.RawWriterPosition / 4046;
 			if (currentPage - _lastFlushedPage > TFChunkScavenger.FlushPageInterval) {
 				_outputChunk.Flush();

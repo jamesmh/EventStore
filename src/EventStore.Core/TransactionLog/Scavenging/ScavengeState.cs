@@ -50,7 +50,6 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 			// todo: in log v3 inject an implementation that doesn't store hash users
 			// since there are no collisions.
 			_collisionDetector = new CollisionDetector<TStreamId>(
-				//qq configurable cacheMaxCount
 				hashUsers: new LruCachingScavengeMap<ulong, TStreamId>(
 					_backend.Hashes,
 					cacheMaxCount: 100_000),
@@ -87,9 +86,12 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 		}
 
 		private void OnRollback() {
-			// a transaction has been rolled back, clear whatever cached data we have
+			// a transaction has been rolled back
+			// need to clear whatever we think we know about collisions to stop us mistaking a new
+			// collision for an old one.
 			_collisionDetector.ClearCaches();
-			//qq others? the lrucache?
+
+			// there is no need to clear the HashUsers LRU cache
 		}
 
 		public void LogStats() {
@@ -186,6 +188,9 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 
 		public bool TryGetChunkTimeStampRange(int logicalChunkNumber, out ChunkTimeStampRange range) =>
 			_chunkTimeStampRanges.TryGetValue(logicalChunkNumber, out range);
+
+		public IEnumerable<TStreamId> LookupStreamIds(ulong streamHash) =>
+			_collisionDetector.LookupStreamIds(streamHash);
 
 		//
 		// FOR CHUNK EXECUTOR
@@ -296,9 +301,6 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 		public void DeleteMetastreamData() {
 			_metastreamDatas.DeleteAll();
 		}
-
-		public IEnumerable<TStreamId> LookupStreamIds(ulong streamHash) =>
-			_collisionDetector.LookupStreamIds(streamHash);
 	}
 
 

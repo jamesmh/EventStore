@@ -35,14 +35,8 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 		public StreamHandle<TStreamId> OriginalStreamHandle { get; private set; }
 		private OriginalStreamData OriginalStreamData { get; set; }
 
-		//qq consider what will happen here if the strea, doesn't exist
-		//  if it doesn't exist at all then presumably there is nothing to scavenge
-		//    we can set the disard point to anything
-		//  if it doesn't exist before the scavenge point but does later then
-		//    there is nothing to remove as part of this scavenge, but we need to be careful
-		//    not to remove the later events.
-		// check the three places that refer to this, they might need to explicitly check for ExpectedVersion.NoStream
-		// at a glance they look correct already but it might be nice to be explicit.
+		// Returns NoStream (-1) if there are no events before the scavenge point.
+		// Caller must handle that
 		private long? _lastEventNumber;
 		public long LastEventNumber {
 			get {
@@ -60,6 +54,7 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 				: DiscardPoint.KeepAll;
 
 		public DiscardPoint MaxCountDiscardPoint =>
+			// if LastEventNumber is NoStream (-1) this will always KeepAll as intended
 			OriginalStreamData.MaxCount.HasValue
 				? DiscardPoint.DiscardIncluding(LastEventNumber - OriginalStreamData.MaxCount.Value)
 				: DiscardPoint.KeepAll;
@@ -113,6 +108,7 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 				// EventNumber.DeletedStream counts as spent because we would only need to
 				// recalculate if a new event is written but in that case the database will
 				// create for us a new metadta record, too.
+				// this also works if LastEventNumber is NoStream (-1)
 				return CalculationStatus.Active;
 			}
 

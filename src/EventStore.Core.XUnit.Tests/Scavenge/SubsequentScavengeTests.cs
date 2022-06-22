@@ -447,5 +447,24 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 					x.Recs[2],
 				});
 		}
+
+		[Fact]
+		public async Task stream_starts_after_scavenge_point() {
+			var t = 0;
+			await new Scenario()
+				.WithDbPath(Fixture.Directory)
+				.WithDb(x => x
+					.Chunk(
+						Rec.Write(t++, "$$ab-1", "$metadata", metadata: TruncateBefore4),
+						ScavengePointRec(t++))
+					.Chunk(
+						Rec.Write(t++, "ab-1"),
+						Rec.Write(t++, "ab-1")))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
+				.RunAsync(x => new[] {
+					x.Recs[0],
+					x.Recs[1],
+				});
+		}
 	}
 }
