@@ -45,7 +45,7 @@
 
   <!-- qq Required to resolve netstandard2.0 references when using mono. Only required for ES5. -->
   <ItemGroup>
-    <Reference Condition=" '$(FrameworkPathOverride)' != '' " Include="netstandard" />
+	<Reference Condition=" '$(FrameworkPathOverride)' != '' " Include="netstandard" />
 	<Reference Condition=" '$(FrameworkPathOverride)' != '' " Include="System.Runtime" />
 	<Reference Condition=" '$(FrameworkPathOverride)' != '' " Include="System.Threading.Tasks" />
   </ItemGroup>
