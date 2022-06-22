@@ -93,6 +93,8 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 						weights,
 						originalStreamHandle,
 						scavengePoint,
+						cancellationToken,
+						ref cancellationCheckCounter,
 						out var newDiscardPoint,
 						out var newMaybeDiscardPoint);
 
@@ -121,12 +123,6 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 
 					totalCounter++;
 
-					// Check cancellation occasionally
-					if (++cancellationCheckCounter == _cancellationCheckPeriod) {
-						cancellationCheckCounter = 0;
-						cancellationToken.ThrowIfCancellationRequested();
-					}
-
 					// Checkpoint occasionally
 					if (++checkpointCounter == _checkpointPeriod) {
 						checkpointCounter = 0;
@@ -139,7 +135,6 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 						var elapsed = stopwatch.Elapsed;
 						LogRate("period", _checkpointPeriod, elapsed - periodStart);
 						LogRate("total", totalCounter, elapsed);
-						_throttle.Rest(cancellationToken);
 
 						periodStart = stopwatch.Elapsed;
 					}
@@ -182,6 +177,8 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 			WeightAccumulator weights,
 			StreamHandle<TStreamId> originalStreamHandle,
 			ScavengePoint scavengePoint,
+			CancellationToken cancellationToken,
+			ref int cancellationCheckCounter,
 			out DiscardPoint discardPoint,
 			out DiscardPoint maybeDiscardPoint) {
 
@@ -191,7 +188,6 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 			maybeDiscardPoint = DiscardPoint.KeepAll;
 
 			//qq tuning: what would be sensible? probably pretty large
-			// but since the stream could be long, we ought to do rests and cancellation checks in here
 			const int maxCount = 100;
 
 			var first = true;
@@ -212,6 +208,13 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 				var slice = result.EventInfos;
 
 				foreach (var eventInfo in slice) {
+					// Check cancellation and rest occasionally
+					if (++cancellationCheckCounter == _cancellationCheckPeriod) {
+						cancellationCheckCounter = 0;
+						cancellationToken.ThrowIfCancellationRequested();
+						_throttle.Rest(cancellationToken);
+					}
+
 					eventCalc.SetEvent(eventInfo);
 
 					if (first) {

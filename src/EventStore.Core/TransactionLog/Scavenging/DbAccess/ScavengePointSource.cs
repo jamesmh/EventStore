@@ -68,7 +68,6 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 			return scavengePoint;
 		}
 
-		//qqq check this and test it, especially on a cluster
 		public async Task<ScavengePoint> AddScavengePointAsync(long expectedVersion, int threshold) {
 			Log.Info("SCAVENGING: Adding new scavenge point #{eventNumber} with threshold {threshold}...",
 				expectedVersion + 1, threshold);

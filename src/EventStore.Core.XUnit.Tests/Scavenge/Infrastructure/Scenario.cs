@@ -260,14 +260,14 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 
 				var calculatorIndexReader = new AdHocIndexReaderInterceptor<string>(
 					new IndexReaderForCalculator(readIndex, scavengeState.LookupStreamIds),
-					(f, handle, x) => {
+					(f, handle, from, maxCount, x) => {
 						if (_calculatingCancellationTrigger != null &&
 							handle.Kind == StreamHandle.Kind.Hash &&
 							handle.StreamHash == hasher.Hash(_calculatingCancellationTrigger)) {
 
 							cancellationTokenSource.Cancel();
 						}
-						return f(handle, x);
+						return f(handle, from, maxCount, x);
 					});
 
 				var chunkExecutorMetastreamLookup = new AdHocMetastreamLookupInterceptor<string>(

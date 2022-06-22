@@ -1,5 +1,4 @@
 ﻿using System;
-using EventStore.Core.Data;
 using EventStore.Core.Services.Storage.ReaderIndex;
 using EventStore.Core.TransactionLog.Scavenging;
 
@@ -7,15 +6,15 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 	public class AdHocIndexReaderInterceptor<TStreamId> : IIndexReaderForCalculator<TStreamId> {
 		private readonly IIndexReaderForCalculator<TStreamId> _wrapped;
 		private readonly Func<
-			Func<StreamHandle<TStreamId>, ScavengePoint, long>,
-			StreamHandle<TStreamId>, ScavengePoint, long> _f;
+			Func<StreamHandle<TStreamId>, long, int, ScavengePoint, IndexReadEventInfoResult>,
+			StreamHandle<TStreamId>, long, int, ScavengePoint, IndexReadEventInfoResult> _f;
 
 
 		public AdHocIndexReaderInterceptor(
 			IIndexReaderForCalculator<TStreamId> wrapped,
 			Func<
-				Func<StreamHandle<TStreamId>, ScavengePoint, long>,
-				StreamHandle<TStreamId>, ScavengePoint, long> f) {
+				Func<StreamHandle<TStreamId>, long, int, ScavengePoint, IndexReadEventInfoResult>,
+				StreamHandle<TStreamId>, long, int, ScavengePoint, IndexReadEventInfoResult> f) {
 
 			_wrapped = wrapped;
 			_f = f;
@@ -25,7 +24,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 			StreamHandle<TStreamId> streamHandle,
 			ScavengePoint scavengePoint) {
 
-			return _f(_wrapped.GetLastEventNumber, streamHandle, scavengePoint);
+			return _wrapped.GetLastEventNumber(streamHandle, scavengePoint);
 		}
 
 		public IndexReadEventInfoResult ReadEventInfoForward(
@@ -34,7 +33,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 			int maxCount,
 			ScavengePoint scavengePoint) {
 
-			return _wrapped.ReadEventInfoForward(stream, fromEventNumber, maxCount, scavengePoint);
+			return _f(_wrapped.ReadEventInfoForward, stream, fromEventNumber, maxCount, scavengePoint);
 		}
 	}
 }
