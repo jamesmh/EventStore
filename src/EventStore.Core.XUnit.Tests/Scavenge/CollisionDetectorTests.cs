@@ -12,7 +12,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 		public static IEnumerable<object[]> TheCases() {
 			var none = Array.Empty<string>();
 			
-			// the first letter of the stream name determines the the hash
+			// the first letter of the stream name determines the hash
 			// each row represents a record but here the only thing we need to know about it is
 			// its streamName and the collisions it generates when we add it.
 			yield return Case(
