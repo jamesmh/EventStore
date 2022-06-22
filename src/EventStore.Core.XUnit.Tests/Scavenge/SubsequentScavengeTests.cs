@@ -10,7 +10,7 @@ using static EventStore.Core.XUnit.Tests.Scavenge.StreamMetadatas;
 
 namespace EventStore.Core.XUnit.Tests.Scavenge {
 	// these tests test that the right steps happen and the right results are obtained when scavenge is
-	// run on a database that already has already been scavenged.
+	// run on a database that has already been scavenged.
 	// a new scavenge point may need to be created, but not necessarily.
 	public class SubsequentScavengeTests : SqliteDbPerTest<SubsequentScavengeTests> {
 		[Fact]
