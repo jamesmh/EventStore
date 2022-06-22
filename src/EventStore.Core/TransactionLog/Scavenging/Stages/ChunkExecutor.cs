@@ -153,7 +153,9 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 				var physicalChunk = _chunkManager.GetChunkReaderFor(scavengePos);
 
 				if (!physicalChunk.IsReadOnly)
-					yield break;
+					throw new Exception(
+						$"Reached open chunk before scavenge point. " +
+						$"Chunk {physicalChunk.ChunkStartNumber}. ScavengePoint: {upTo}.");
 
 				yield return physicalChunk;
 

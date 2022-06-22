@@ -90,8 +90,11 @@ namespace EventStore.Core.Tests.TransactionLog.Scavenging.Helpers {
 				var chunk = i == 0 ? _db.Manager.GetChunk(0) : _db.Manager.AddNewChunk();
 				_db.Config.WriterCheckpoint.Write(i * (long)_db.Config.ChunkSize);
 
+				var completedChunk = false;
 				// for each record j in chunk i
 				for (int j = 0; j < _chunkRecs[i].Length; ++j) {
+					if (completedChunk)
+						throw new InvalidOperationException("Don't try to write more data to completed chunk");
 					var rec = _chunkRecs[i][j];
 					var transInfo = transactions[rec.Transaction];
 					var logPos = _db.Config.WriterCheckpoint.ReadNonFlushed();
@@ -178,13 +181,21 @@ namespace EventStore.Core.Tests.TransactionLog.Scavenging.Helpers {
 						throw new Exception(string.Format("Could not write log record: {0}", record));
 					_db.Config.WriterCheckpoint.Write(i * (long)_db.Config.ChunkSize + writerRes.NewPosition);
 
+					if (record is PrepareLogRecord prepare && prepare.EventType == SystemEventTypes.ScavengePoint) {
+						chunk.Complete();
+						completedChunk = true;
+					}
+
 					records[i][j] = record;
 				}
 
-				if (i < _chunkRecs.Count - 1 || (_completeLast && i == _chunkRecs.Count - 1))
-					chunk.Complete();
-				else
-					chunk.Flush();
+				if (!completedChunk) {
+					if (i < _chunkRecs.Count - 1 || (_completeLast && i == _chunkRecs.Count - 1)) {
+						chunk.Complete();
+					} else {
+						chunk.Flush();
+					}
+				}
 			}
 
 			return new DbResult(_db, records, streams);

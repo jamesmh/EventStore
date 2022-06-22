@@ -22,23 +22,28 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						Rec.Write(t++, "ab-1"),
 						Rec.Write(t++, "ab-1"), // keep
 						Rec.Write(t++, "$$ab-1", "$metadata", metadata: MaxCount1)) // keep
-					.Chunk(ScavengePointRec(t++)))
+					.Chunk(ScavengePointRec(t++))) // keep
 				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
 				.RunAsync(
 					x => new LogRecord[][] {
-						// chunk 0 and chunk 1 are the same chunk now
+						// chunk 0, 1 and 2 are the same chunk now
 						new[] {
 							x.Recs[0][1],
 							x.Recs[1][1],
 							x.Recs[1][2],
+							x.Recs[2][0],
 						},
 						new[] {
 							x.Recs[0][1],
 							x.Recs[1][1],
 							x.Recs[1][2],
+							x.Recs[2][0],
 						},
 						new[] {
-							x.Recs[2][0], // scavenge point still in its own chunk because not complete
+							x.Recs[0][1],
+							x.Recs[1][1],
+							x.Recs[1][2],
+							x.Recs[2][0],
 						}
 					},
 					x => null);

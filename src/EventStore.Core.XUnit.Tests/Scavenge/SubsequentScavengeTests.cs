@@ -42,7 +42,6 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 				});
 		}
 
-
 		[Fact]
 		public async Task can_create_subsequent_scavenge_point() {
 			// set up some state and some chunks simulating a scavenge that has been completed
@@ -58,7 +57,8 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						// events 0-4 removed in a previous scavenge
 						Rec.Write(t++, "ab-1", eventNumber: 5))
 					.Chunk(
-						ScavengePointRec(t++),
+						ScavengePointRec(t++))
+					.Chunk(
 						// two new records written since the previous scavenge
 						Rec.Write(t++, "ab-1"),
 						Rec.Write(t++, "ab-1"))
@@ -103,15 +103,18 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						// events 0-4 removed in a previous scavenge
 						Rec.Write(t++, "ab-1", eventNumber: 5))
 					.Chunk(
-						ScavengePointRec(t++), // <-- SP-0
+						ScavengePointRec(t++)) // <-- SP-0 scavenged previously
+					.Chunk(
 						// five new records written since the previous scavenge
 						Rec.Write(t++, "ab-1"),
 						Rec.Write(t++, "ab-1"))
 					.Chunk(
 						Rec.Write(t++, "ab-1"),
-						ScavengePointRec(t++), // <-- SP-1 added by another node
+						ScavengePointRec(t++)) // <-- SP-1 added by another node
+					.Chunk(
 						Rec.Write(t++, "ab-1"),
-						ScavengePointRec(t++), // <-- SP-2 added by another node
+						ScavengePointRec(t++)) // <-- SP-2 added by another node
+					.Chunk(
 						Rec.Write(t++, "ab-1"))
 					.CompleteLastChunk())
 				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
@@ -129,15 +132,19 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 				.AssertTrace(
 					Tracer.Line("Accumulating from SP-0 to SP-2"),
 					Tracer.Line("    Begin"),
-					Tracer.Line("        Checkpoint: Accumulating SP-2 done Chunk 0"),
-					Tracer.Line("    Commit"),
-					Tracer.Line("    Begin"),
-					Tracer.Line("        Reading Chunk 1"),
 					Tracer.Line("        Checkpoint: Accumulating SP-2 done Chunk 1"),
 					Tracer.Line("    Commit"),
 					Tracer.Line("    Begin"),
 					Tracer.Line("        Reading Chunk 2"),
 					Tracer.Line("        Checkpoint: Accumulating SP-2 done Chunk 2"),
+					Tracer.Line("    Commit"),
+					Tracer.Line("    Begin"),
+					Tracer.Line("        Reading Chunk 3"),
+					Tracer.Line("        Checkpoint: Accumulating SP-2 done Chunk 3"),
+					Tracer.Line("    Commit"),
+					Tracer.Line("    Begin"),
+					Tracer.Line("        Reading Chunk 4"),
+					Tracer.Line("        Checkpoint: Accumulating SP-2 done Chunk 4"),
 					Tracer.Line("    Commit"),
 					Tracer.Line("Done"),
 
@@ -160,8 +167,6 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 					Tracer.Line("    Begin"),
 					Tracer.Line("        Checkpoint: Executing chunks for SP-2 done Chunk 0"),
 					Tracer.Line("    Commit"),
-					Tracer.Line("    Opening Chunk 1-1"),
-					Tracer.Line("    Switched in chunk-000001.000001"),
 					Tracer.Line("    Begin"),
 					Tracer.Line("        Checkpoint: Executing chunks for SP-2 done Chunk 1"),
 					Tracer.Line("    Commit"),
@@ -169,6 +174,14 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 					Tracer.Line("    Switched in chunk-000002.000001"),
 					Tracer.Line("    Begin"),
 					Tracer.Line("        Checkpoint: Executing chunks for SP-2 done Chunk 2"),
+					Tracer.Line("    Commit"),
+					Tracer.Line("    Opening Chunk 3-3"),
+					Tracer.Line("    Switched in chunk-000003.000001"),
+					Tracer.Line("    Begin"),
+					Tracer.Line("        Checkpoint: Executing chunks for SP-2 done Chunk 3"),
+					Tracer.Line("    Commit"),
+					Tracer.Line("    Begin"),
+					Tracer.Line("        Checkpoint: Executing chunks for SP-2 done Chunk 4"),
 					Tracer.Line("    Commit"),
 					Tracer.Line("Done"),
 
@@ -199,7 +212,10 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 				.RunAsync(x => new[] {
 					x.Recs[0].KeepIndexes(0),
 					x.Recs[1].KeepIndexes(0),
-					x.Recs[2].KeepIndexes(1, 2, 3, 4),
+					x.Recs[2].KeepIndexes(),
+					x.Recs[3].KeepIndexes(1),
+					x.Recs[4].KeepIndexes(0, 1),
+					x.Recs[5].KeepIndexes(0),
 				});
 		}
 
@@ -216,15 +232,18 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						// events 0-4 removed in a previous scavenge
 						Rec.Write(t++, "ab-1", eventNumber: 5))
 					.Chunk(
-						ScavengePointRec(t++),
+						ScavengePointRec(t++)) // <-- SP-0 previous scavenge
+					.Chunk(
 						// five new records written since the previous scavenge
 						Rec.Write(t++, "ab-1"),
 						Rec.Write(t++, "ab-1"))
 					.Chunk(
 						Rec.Write(t++, "ab-1"),
-						ScavengePointRec(t++), // <-- SP-1 added by another node
+						ScavengePointRec(t++)) // <-- SP-1 added by another node
+					.Chunk(
 						Rec.Write(t++, "ab-1"),
-						ScavengePointRec(t++), // <-- SP-2 added by another node
+						ScavengePointRec(t++)) // <-- SP-2 added by another node
+					.Chunk(
 						Rec.Write(t++, "ab-1"))
 					.CompleteLastChunk())
 				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
@@ -233,7 +252,10 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 				.RunAsync(x => new[] {
 					x.Recs[0].KeepIndexes(0),
 					x.Recs[1].KeepIndexes(0),
-					x.Recs[2].KeepIndexes(1, 2, 3, 4),
+					x.Recs[2].KeepIndexes(),
+					x.Recs[3].KeepIndexes(1),
+					x.Recs[4].KeepIndexes(0, 1),
+					x.Recs[5].KeepIndexes(0),
 				});
 		}
 
@@ -254,15 +276,12 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 				})
 				.AssertTrace(
 					Tracer.Line("Accumulating from SP-0 to SP-1"),
+					// the important bit: we start accumulation from the chunk after the SP is in
 					Tracer.Line("    Begin"),
-					// the important bit: we start accumulation from the chunk with the SP in
-					Tracer.Line("        Checkpoint: Accumulating SP-1 done None"),
-					Tracer.Line("    Commit"),
-					Tracer.Line("    Begin"),
-					Tracer.Line("        Reading Chunk 0"),
 					Tracer.Line("        Checkpoint: Accumulating SP-1 done Chunk 0"),
 					Tracer.Line("    Commit"),
 					Tracer.Line("    Begin"),
+					Tracer.Line("        Reading Chunk 1"),
 					Tracer.Line("        Checkpoint: Accumulating SP-1 done Chunk 1"),
 					Tracer.Line("    Commit"),
 					Tracer.Line("Done"),
@@ -334,15 +353,12 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 				})
 				.AssertTrace(
 					Tracer.Line("Accumulating from SP-2 to SP-3"),
+					// the important bit: we start accumulation from the chunk after the prev SP is in
 					Tracer.Line("    Begin"),
-					// the important bit: we start accumulation from the chunk with the prev SP in
-					Tracer.Line("        Checkpoint: Accumulating SP-3 done Chunk 1"),
-					Tracer.Line("    Commit"),
-					Tracer.Line("    Begin"),
-					Tracer.Line("        Reading Chunk 2"),
 					Tracer.Line("        Checkpoint: Accumulating SP-3 done Chunk 2"),
 					Tracer.Line("    Commit"),
 					Tracer.Line("    Begin"),
+					Tracer.Line("        Reading Chunk 3"),
 					Tracer.Line("        Checkpoint: Accumulating SP-3 done Chunk 3"),
 					Tracer.Line("    Commit"),
 					Tracer.Line("Done"),
@@ -416,7 +432,8 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						Rec.Write(t++, "ab-1"), // 1
 						Rec.Write(t++, "ab-1")) // 2
 					.Chunk(
-						ScavengePointRec(t++), // <-- SP-0
+						ScavengePointRec(t++)) // <-- SP-0
+					.Chunk(
 						Rec.Write(t++, "$$ab-1", "$metadata", metadata: MaxCount4),
 						Rec.Write(t++, "ab-1"), // 3
 						Rec.Write(t++, "ab-1")) // 4
@@ -445,6 +462,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 					x.Recs[0].KeepIndexes(3),
 					x.Recs[1],
 					x.Recs[2],
+					x.Recs[3],
 				});
 		}
 

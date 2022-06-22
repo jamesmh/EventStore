@@ -47,20 +47,15 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 
 			var doneLogicalChunkNumber = default(int?);
 
-			// accumulate the chunk that the previous scavenge point was in because we last time we
-			// only accumulated that chunk _up to_ the scavenge point and not all of it.
 			if (prevScavengePoint != null) {
-				if (prevScavengePoint.Position >= _chunkSize) {
-					doneLogicalChunkNumber = (int)(prevScavengePoint.Position / _chunkSize) - 1;
-				} else {
-					// the previous scavenge point was in the first chunk so we haven't
-					// 'done' any chunks, leave it as null.
-				}
+				// scavenge point always closes a chunk, and we accumulate up to and including the
+				// scavenge point, so we have done the chunk with the prev scavenge point in it.
+				doneLogicalChunkNumber = (int)(prevScavengePoint.Position / _chunkSize);
 			}
 
 			var checkpoint = new ScavengeCheckpoint.Accumulating(
-					scavengePoint,
-					doneLogicalChunkNumber);
+				scavengePoint: scavengePoint,
+				doneLogicalChunkNumber: doneLogicalChunkNumber);
 			state.SetCheckpoint(checkpoint);
 			Accumulate(checkpoint, state, cancellationToken);
 		}
@@ -177,9 +172,9 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 			chunkMinTimeStamp = DateTime.MaxValue;
 			chunkMaxTimeStamp = DateTime.MinValue;
 
-			var stopBefore = scavengePoint.Position;
+			var scavengePointPosition = scavengePoint.Position;
 
-			if ((long)logicalChunkNumber * _chunkSize >= stopBefore) {
+			if ((long)logicalChunkNumber * _chunkSize > scavengePointPosition) {
 				// this can happen if we accumulated the chunk with the scavenge point in it
 				// then checkpointed that we have done so.
 				return false;
@@ -192,8 +187,9 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 				         metadataStreamRecord,
 				         tombStoneRecord)) {
 				using (record) {
-					if (record.LogPosition >= stopBefore)
-						return false;
+					if (record.LogPosition > scavengePointPosition) {
+						throw new Exception("Accumulator expected to find the scavenge point before now.");
+					}
 
 					if (record.TimeStamp < chunkMinTimeStamp)
 						chunkMinTimeStamp = record.TimeStamp;
@@ -216,6 +212,11 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 							break;
 						default:
 							throw new InvalidOperationException($"Unexpected record: {record}");
+					}
+
+					if (record.LogPosition == scavengePointPosition) {
+						// accumulated the scavenge point, time to stop.
+						return false;
 					}
 				}
 
