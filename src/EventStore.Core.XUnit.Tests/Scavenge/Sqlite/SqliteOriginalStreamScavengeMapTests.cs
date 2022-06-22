@@ -280,7 +280,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge.Sqlite {
 		}
 		
 		[Fact]
-		public void can_try_get_stream_execution_details_of_non_existing() {
+		public void can_try_get_chunk_execution_info_of_non_existing() {
 			var sut = new SqliteOriginalStreamScavengeMap<int>("OriginalStreamScavengeMap");
 			sut.Initialize(new SqliteBackend(Fixture.DbConnection));
 
