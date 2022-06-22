@@ -14,7 +14,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 			
 			// the first letter of the stream name determines the hash
 			// each row represents a record but here the only thing we need to know about it is
-			// its streamName and the collisions it generates when we add it.
+			// its stream name and the collisions it generates when we add it.
 			yield return Case(
 				"seen stream before. was a collision first time we saw it",
 				("a-stream1", none),
