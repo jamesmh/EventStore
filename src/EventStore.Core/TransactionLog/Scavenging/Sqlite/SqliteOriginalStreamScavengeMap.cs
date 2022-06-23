@@ -57,7 +57,7 @@ namespace EventStore.Core.TransactionLog.Scavenging.Sqlite {
 					discardPoint      INTEGER DEFAULT 0,
 					maybeDiscardPoint INTEGER DEFAULT 0,
 					status            INTEGER DEFAULT 0);
-				CREATE INDEX IF NOT EXISTS {TableName}KeyStatus ON {TableName} (key, status)";
+				CREATE INDEX IF NOT EXISTS {TableName}KeyStatus ON {TableName} (status, key)";
 			
 			sqlite.InitializeDb(sql);
 
