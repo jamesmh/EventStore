@@ -34,6 +34,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 		private ITFChunkScavengerLog _logger;
 
 		private bool _mergeChunks;
+		private bool _syncOnly;
 		private string _dbPath;
 		private string _accumulatingCancellationTrigger;
 		private string _calculatingCancellationTrigger;
@@ -107,6 +108,11 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 
 		public Scenario WithMergeChunks(bool mergeChunks = true) {
 			_mergeChunks = mergeChunks;
+			return this;
+		}
+
+		public Scenario WithSyncOnly(bool syncOnly = true) {
+			_syncOnly = syncOnly;
 			return this;
 		}
 
@@ -371,6 +377,7 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 						_newScavengePoint ?? new List<ScavengePoint>()),
 					_logger ?? successLogger,
 					thresholdForNewScavenge: 0,
+					syncOnly: _syncOnly,
 					throttle.PrettyPrint);
 
 				Tracer.Reset();

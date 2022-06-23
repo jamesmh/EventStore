@@ -179,6 +179,7 @@ namespace EventStore.Core.Cluster.Settings {
 			Ensure.Positive(commitAckCount, "commitAckCount");
 			Ensure.Positive(initializationThreads, "initializationThreads");
 			Ensure.NotNull(gossipAdvertiseInfo, "gossipAdvertiseInfo");
+			Ensure.Positive(scavengeBackendCacheSize, "scavengeBackendCacheSize");
 
 			if (scavengeThrottlePercent <= 0 || scavengeThrottlePercent > 100)
 				throw new ArgumentException($"ScavengeThrottlePercent must be in the range 1-100 inclusive. Provided value was {scavengeThrottlePercent}");

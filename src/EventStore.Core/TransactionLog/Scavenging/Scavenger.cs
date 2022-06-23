@@ -24,6 +24,7 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 		private readonly IScavengePointSource _scavengePointSource;
 		private readonly ITFChunkScavengerLog _scavengerLogger;
 		private readonly int _thresholdForNewScavenge;
+		private readonly bool _syncOnly;
 		private readonly Func<string> _getThrottleStats;
 
 		private readonly Dictionary<string, TimeSpan> _recordedTimes =
@@ -40,6 +41,7 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 			IScavengePointSource scavengePointSource,
 			ITFChunkScavengerLog scavengerLogger,
 			int thresholdForNewScavenge,
+			bool syncOnly,
 			Func<string> getThrottleStats) {
 
 			_state = state;
@@ -52,6 +54,7 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 			_scavengePointSource = scavengePointSource;
 			_scavengerLogger = scavengerLogger;
 			_thresholdForNewScavenge = thresholdForNewScavenge;
+			_syncOnly = syncOnly;
 			_getThrottleStats = getThrottleStats;
 		}
 
@@ -220,10 +223,17 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 			ScavengePoint nextScavengePoint;
 			var latestScavengePoint = await _scavengePointSource.GetLatestScavengePointOrDefaultAsync();
 			if (latestScavengePoint == null) {
-				Log.Trace("SCAVENGING: creating the first scavenge point.");
-				// no latest scavenge point, create the first one
-				nextScavengePoint = await _scavengePointSource
-					.AddScavengePointAsync(ExpectedVersion.NoStream, threshold: _thresholdForNewScavenge);
+				if (_syncOnly) {
+					Log.Trace("SCAVENGING: No existing scavenge point to sync with, nothing to do.");
+					return;
+				} else {
+					Log.Trace("SCAVENGING: creating the first scavenge point.");
+					// no latest scavenge point, create the first one
+					nextScavengePoint = await _scavengePointSource
+						.AddScavengePointAsync(
+							ExpectedVersion.NoStream,
+							threshold: _thresholdForNewScavenge);
+				}
 			} else {
 				// got the latest scavenge point
 				if (prevScavengePoint == null ||
@@ -234,14 +244,21 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 						latestScavengePoint.EventNumber);
 					nextScavengePoint = latestScavengePoint;
 				} else {
-					// the latest scavengepoint is the prev scavenge point, so create a new one
-					var expectedVersion = prevScavengePoint.EventNumber;
-					Log.Trace(
-						"SCAVENGING: creating the next scavenge point: {scavengePointNumber}",
-						expectedVersion + 1);
+					if (_syncOnly) {
+						Log.Trace("SCAVENGING: No existing scavenge point to sync with, nothing to do.");
+						return;
+					} else {
+						// the latest scavengepoint is the prev scavenge point, so create a new one
+						var expectedVersion = prevScavengePoint.EventNumber;
+						Log.Trace(
+							"SCAVENGING: creating the next scavenge point: {scavengePointNumber}",
+							expectedVersion + 1);
 
-					nextScavengePoint = await _scavengePointSource
-						.AddScavengePointAsync(expectedVersion, threshold: _thresholdForNewScavenge);
+						nextScavengePoint = await _scavengePointSource
+							.AddScavengePointAsync(
+								expectedVersion,
+								threshold: _thresholdForNewScavenge);
+					}
 				}
 			}
 

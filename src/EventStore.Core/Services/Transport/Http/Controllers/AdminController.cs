@@ -26,7 +26,7 @@ namespace EventStore.Core.Services.Transport.Http.Controllers {
 				new ControllerAction("/admin/shutdown", HttpMethod.Post, Codec.NoCodecs, SupportedCodecs, AuthorizationLevel.Ops),
 				OnPostShutdown);
 			service.RegisterAction(
-				new ControllerAction("/admin/scavenge?startFromChunk={startFromChunk}&threads={threads}&threshold={threshold}&throttlePercent={throttlePercent}",
+				new ControllerAction("/admin/scavenge?startFromChunk={startFromChunk}&threads={threads}&threshold={threshold}&throttlePercent={throttlePercent}&syncOnly={syncOnly}",
 					HttpMethod.Post, Codec.NoCodecs, SupportedCodecs, AuthorizationLevel.Ops), OnPostScavenge);
 			service.RegisterAction(
 				new ControllerAction("/admin/scavenge/{scavengeId}", HttpMethod.Delete, Codec.NoCodecs,
@@ -113,6 +113,17 @@ namespace EventStore.Core.Services.Transport.Http.Controllers {
 				throttlePercent = x;
 			}
 
+			var syncOnly = false;
+			var syncOnlyVariable = match.BoundVariables["syncOnly"];
+			if (syncOnlyVariable != null) {
+				if (!bool.TryParse(syncOnlyVariable, out var x)) {
+					SendBadRequest(entity, "syncOnly must be a boolean");
+					return;
+				}
+
+				syncOnly = x;
+			}
+
 			var sb = new StringBuilder();
 			var args = new List<object>();
 
@@ -131,6 +142,9 @@ namespace EventStore.Core.Services.Transport.Http.Controllers {
 				sb.Append("&throttlePercent={throttlePercent}");
 				args.Add(throttlePercent);
 			}
+
+			sb.Append("&syncOnly={syncOnly}");
+			args.Add(syncOnly);
 
 			sb.Append(" request has been received.");
 			Log.Info(sb.ToString(), args.ToArray());
@@ -161,7 +175,8 @@ namespace EventStore.Core.Services.Transport.Http.Controllers {
 				startFromChunk: startFromChunk,
 				threads: threads,
 				threshold: threshold,
-				throttlePercent: throttlePercent));
+				throttlePercent: throttlePercent,
+				syncOnly: syncOnly));
 		}
 
 		private void OnStopScavenge(HttpEntityManager entity, UriTemplateMatch match) {

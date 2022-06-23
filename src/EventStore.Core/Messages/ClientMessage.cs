@@ -1490,6 +1490,7 @@ namespace EventStore.Core.Messages {
 			public readonly int Threads;
 			public readonly int? Threshold;
 			public readonly int? ThrottlePercent;
+			public readonly bool SyncOnly;
 
 			public ScavengeDatabase(
 				IEnvelope envelope,
@@ -1498,7 +1499,8 @@ namespace EventStore.Core.Messages {
 				int startFromChunk,
 				int threads,
 				int? threshold,
-				int? throttlePercent) {
+				int? throttlePercent,
+				bool syncOnly) {
 
 				Ensure.NotNull(envelope, "envelope");
 				Envelope = envelope;
@@ -1508,6 +1510,7 @@ namespace EventStore.Core.Messages {
 				Threads = threads;
 				Threshold = threshold;
 				ThrottlePercent = throttlePercent;
+				SyncOnly = syncOnly;
 			}
 		}
 

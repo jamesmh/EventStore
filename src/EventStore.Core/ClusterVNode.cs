@@ -654,6 +654,7 @@ namespace EventStore.Core {
 						// threshold = 0: execute all chunks with weight greater than 0
 						// threshold > 0: execute all chunks above a certain weight
 						thresholdForNewScavenge: message.Threshold ?? 0,
+						syncOnly: message.SyncOnly,
 						getThrottleStats: () => throttle.PrettyPrint());
 				});
 

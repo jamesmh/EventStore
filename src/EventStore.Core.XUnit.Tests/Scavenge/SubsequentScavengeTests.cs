@@ -218,6 +218,76 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 				});
 		}
 
+		// syncOnly prevents a new scavenge point from being created, it only scavenges an existing one.
+		// so we need to check
+		// - that it scavenges as normal if there is one to do
+		// - that it stops successfully if there isn't one at all
+		// - that it stops successfully if it has done all of them.
+		[Fact]
+		public async Task can_sync_only_with_scavenge_point_to_do() {
+			// first scavenge creates the first scavenge point SP-1
+			var newScavengePoint = new List<ScavengePoint>();
+			var t = 0;
+			await new Scenario()
+				.WithDbPath(Fixture.Directory)
+				.WithDb(x => x
+					.Chunk(
+						Rec.Write(t++, "$$ab-1", "$metadata", metadata: MaxCount1),
+						Rec.Write(t++, "ab-1"),
+						Rec.Write(t++, "ab-1"))
+					.Chunk(ScavengePointRec(t++))) // SP-0
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
+				.WithSyncOnly(true)
+				.RunAsync(x => new[] {
+					x.Recs[0].KeepIndexes(0, 2),
+					x.Recs[1],
+				});
+		}
+
+		[Fact]
+		public async Task can_sync_only_with_no_scavenge_point() {
+			var t = 0;
+			await new Scenario()
+				.WithDbPath(Fixture.Directory)
+				.WithDb(x => x
+					.Chunk(
+						Rec.Write(t++, "$$ab-1", "$metadata", metadata: MaxCount1),
+						Rec.Write(t++, "ab-1"),
+						Rec.Write(t++, "ab-1")))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
+				.WithSyncOnly(true)
+				.AssertTrace()
+				.RunAsync(x => new[] {
+					x.Recs[0], // not scavenged
+				});
+		}
+
+		[Fact]
+		public async Task can_sync_only_with_completed_scavenge_point() {
+			var newScavengePoint = new List<ScavengePoint>();
+			var t = 0;
+			await new Scenario()
+				.WithDbPath(Fixture.Directory)
+				.WithDb(x => x
+					.Chunk(ScavengePointRec(t++)) // SP-0
+					.Chunk(
+						Rec.Write(t++, "$$ab-1", "$metadata", metadata: MaxCount1),
+						Rec.Write(t++, "ab-1"),
+						Rec.Write(t++, "ab-1")))
+				.WithState(x => x.WithConnectionPool(Fixture.DbConnectionPool))
+				.MutateState(x => {
+					x.SetCheckpoint(new ScavengeCheckpoint.Done(ScavengePoint(
+						chunk: 0,
+						eventNumber: 0)));
+				})
+				.WithSyncOnly(true)
+				.AssertTrace()
+				.RunAsync(x => new[] {
+					x.Recs[0],
+					x.Recs[1], // not scavenged
+				});
+		}
+
 		[Fact]
 		public async Task can_subsequent_scavenge_without_state() {
 			// say we deleted the state, or old scavenge has been run but not new scavenge
