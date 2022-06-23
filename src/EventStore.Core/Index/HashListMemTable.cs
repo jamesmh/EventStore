@@ -9,6 +9,7 @@ using EventStore.Core.Exceptions;
 namespace EventStore.Core.Index {
 	public class HashListMemTable : IMemTable, ISearchTable {
 		private static readonly IComparer<Entry> MemTableComparer = new EventNumberComparer();
+		private static readonly IComparer<Entry> LogPosComparer = new LogPositionComparer();
 
 		public long Count {
 			get { return _count; }
@@ -144,7 +145,7 @@ namespace EventStore.Core.Index {
 			try {
 				int endIdx = list.UpperBound(
 					key: new Entry(long.MaxValue, beforePosition - 1),
-					comparer: new LogPositionComparer(),
+					comparer: LogPosComparer,
 					continueSearch: e=> isForThisStream(new IndexEntry(hash, e.EvNum, e.LogPos)));
 
 				if (endIdx == -1)
@@ -209,7 +210,7 @@ namespace EventStore.Core.Index {
 						return false;
 
 					var e = list.Keys[endIdx];
-					entry = new IndexEntry(hash, e.EvNum, e.LogPos);;
+					entry = new IndexEntry(hash, e.EvNum, e.LogPos);
 					return true;
 				} finally {
 					Monitor.Exit(list);
@@ -238,7 +239,7 @@ namespace EventStore.Core.Index {
 						return false;
 
 					var e = list.Keys[endIdx];
-					entry = new IndexEntry(hash, e.EvNum, e.LogPos);;
+					entry = new IndexEntry(hash, e.EvNum, e.LogPos);
 					return true;
 				} finally {
 					Monitor.Exit(list);
