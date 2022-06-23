@@ -17,53 +17,53 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 			// its stream name and the collisions it generates when we add it.
 			yield return Case(
 				"seen stream before. was a collision first time we saw it",
-				("a-stream1", none),
-				("a-streamOfInterest", new[] { "a-stream1", "a-streamOfInterest" }),
-				("b-stream2", none),
-				("a-streamOfInterest", none));
+				("a-stream1",          CollisionResult.NoCollision,  "", none),
+				("a-streamOfInterest", CollisionResult.NewCollision, "a-stream1", new[] { "a-stream1", "a-streamOfInterest" }),
+				("b-stream2",          CollisionResult.NoCollision,  "", none),
+				("a-streamOfInterest", CollisionResult.OldCollision, "", none));
 
 			yield return Case(
 				"seen stream before. was not a collision but has since been collided with",
-				("a-streamOfInterest", none),
-				("a-stream1", new[] { "a-stream1", "a-streamOfInterest" }),
-				("b-stream2", none),
-				("a-streamOfInterest", none));
+				("a-streamOfInterest", CollisionResult.NoCollision,  "", none),
+				("a-stream1",          CollisionResult.NewCollision, "a-streamOfInterest", new[] { "a-stream1", "a-streamOfInterest" }),
+				("b-stream2",          CollisionResult.NoCollision,  "", none),
+				("a-streamOfInterest", CollisionResult.OldCollision, "", none));
 
 			yield return Case(
 				"seen stream before. was not a collision and still isnt",
-				("a-streamOfInterest", none),
-				("b-stream2", none),
-				("a-streamOfInterest", none));
+				("a-streamOfInterest", CollisionResult.NoCollision, "", none),
+				("b-stream2",          CollisionResult.NoCollision, "", none),
+				("a-streamOfInterest", CollisionResult.NoCollision, "", none));
 
 			yield return Case(
 				"first time seeing stream. no collision",
-				("a-stream1", none),
-				("b-stream2", none),
-				("c-streamOfInterest", none));
+				("a-stream1",          CollisionResult.NoCollision, "", none),
+				("b-stream2",          CollisionResult.NoCollision, "", none),
+				("c-streamOfInterest", CollisionResult.NoCollision, "", none));
 
 			yield return Case(
 				"first time seeing stream. collides with previous stream",
-				("a-stream1", none),
-				("b-stream2", none),
-				("a-streamOfInterest", new[] { "a-stream1", "a-streamOfInterest" }));
+				("a-stream1",          CollisionResult.NoCollision,  "", none),
+				("b-stream2",          CollisionResult.NoCollision,  "", none),
+				("a-streamOfInterest", CollisionResult.NewCollision, "a-stream1", new[] { "a-stream1", "a-streamOfInterest" }));
 
 			yield return Case(
 				"three way collision",
-				("a-stream1", none),
-				("a-stream2", new[] { "a-stream1", "a-stream2" }),
-				("a-stream3", new[] { "a-stream3" }));
+				("a-stream1", CollisionResult.NoCollision,  "", none),
+				("a-stream2", CollisionResult.NewCollision, "a-stream1", new[] { "a-stream1", "a-stream2" }),
+				("a-stream3", CollisionResult.NewCollision, "a-stream1", new[] { "a-stream3" }));
 
 			yield return Case(
 				"in combination",
-				("a-stream1", none), // 2b
-				("a-stream2", new[] { "a-stream1", "a-stream2" }), // 2a
-				("b-stream3", none),
-				("a-stream4", new[] { "a-stream4" }),
-				("b-stream3", none), // 1c
-				("a-stream1", none), // 1b
-				("a-stream2", none)); // 1a
+				("a-stream1", CollisionResult.NoCollision,  "", none), // 2b
+				("a-stream2", CollisionResult.NewCollision, "a-stream1", new[] { "a-stream1", "a-stream2" }), // 2a
+				("b-stream3", CollisionResult.NoCollision,  "", none),
+				("a-stream4", CollisionResult.NewCollision, "a-stream1", new[] { "a-stream4" }),
+				("b-stream3", CollisionResult.NoCollision,  "", none), // 1c
+				("a-stream1", CollisionResult.OldCollision, "", none), // 1b
+				("a-stream2", CollisionResult.OldCollision, "", none)); // 1a
 
-			object[] Case(string name, params (string, string[])[] data) {
+			object[] Case(string name, params (string, CollisionResult, string oldUser, string[])[] data) {
 				return new object[] {
 					name, data
 				};
@@ -72,7 +72,10 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 
 		[Theory]
 		[MemberData(nameof(TheCases))]
-		public void Works(string caseName, (string StreamName, string[] NewCollisions)[] data) {
+		public void Works(
+			string caseName,
+			(string StreamName, CollisionResult CollisionResult, string ExpectedOldUser, string[] NewCollisions)[] data) {
+
 			Assert.NotNull(caseName);
 
 			var log = data.Select(x => x.StreamName).ToArray();
@@ -113,10 +116,14 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 				foreach (var newCollision in data[i].NewCollisions)
 					expectedCollisions.Add(newCollision);
 
-				sut.DetectCollisions(data[i].StreamName, out _);
+				var result = sut.DetectCollisions(data[i].StreamName, out var oldUser);
+				Assert.Equal(result, data[i].CollisionResult);
 				Assert.Equal(
 					expectedCollisions.OrderBy(x => x),
 					sut.AllCollisions());
+
+				if (result == CollisionResult.NewCollision)
+					Assert.Equal(data[i].ExpectedOldUser, oldUser);
 			}
 		}
 	}
