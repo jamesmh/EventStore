@@ -29,9 +29,6 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 		public Task<ScavengePoint> GetLatestScavengePointOrDefaultAsync() {
 			ScavengePoint scavengePoint = default;
 
-			if (scavengePoint != null)
-				return Task.FromResult(scavengePoint);
-
 			foreach (var record in AllRecords()) {
 				if (record is PrepareLogRecord prepare &&
 					prepare.EventType == SystemEventTypes.ScavengePoint) {
@@ -60,8 +57,11 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 					$"wrong version number {expectedVersion} vs {actualVersion}");
 			}
 
+			// this is only used in a specific way, when CancelOnNewScavengePoint is called.
+			// the scavenge point isn't used for a scavenge, we just assert that the scavenge
+			// created it properly
 			var scavengePoint = new ScavengePoint(
-				position: 121212, // hmm
+				position: -1,
 				eventNumber: expectedVersion + 1,
 				effectiveNow: _effectiveNow,
 				threshold: threshold);
