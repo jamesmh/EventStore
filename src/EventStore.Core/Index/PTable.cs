@@ -448,6 +448,7 @@ namespace EventStore.Core.Index {
 			Func<IndexEntry,bool> isForThisStream,
 			out IndexEntry entry) {
 			Ensure.Nonnegative(beforePosition, nameof(beforePosition));
+			stream = GetHash(stream);
 
 			entry = TableIndex.InvalidIndexEntry;
 
