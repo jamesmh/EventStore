@@ -123,6 +123,7 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 					metadataStreamRecord,
 					tombStoneRecord,
 					cancellationToken,
+					out var countAccumulatedRecords,
 					out var chunkMinTimeStamp,
 					out var chunkMaxTimeStamp);
 
@@ -143,8 +144,8 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 					scavengePoint,
 					doneLogicalChunkNumber: logicalChunkNumber));
 
-				Log.Trace("SCAVENGING: Accumulated chunk {chunk} in {elapsed}. Chunk total: {chunkTotalElapsed}",
-					logicalChunkNumber, accumulationElapsed, stopwatch.Elapsed);
+				Log.Trace("SCAVENGING: Accumulated {countAccumulatedRecords:N0} records in chunk {chunk} in {elapsed}. Chunk total: {chunkTotalElapsed}",
+					countAccumulatedRecords, logicalChunkNumber, accumulationElapsed, stopwatch.Elapsed);
 
 				return ret;
 			} catch {
@@ -165,9 +166,11 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 			ReusableObject<RecordForAccumulator<TStreamId>.MetadataStreamRecord> metadataStreamRecord,
 			ReusableObject<RecordForAccumulator<TStreamId>.TombStoneRecord> tombStoneRecord,
 			CancellationToken cancellationToken,
+			out int countAccumulatedRecords,
 			out DateTime chunkMinTimeStamp,
 			out DateTime chunkMaxTimeStamp) {
 
+			countAccumulatedRecords = 0;
 			// start with empty range and expand it as we discover records.
 			chunkMinTimeStamp = DateTime.MaxValue;
 			chunkMaxTimeStamp = DateTime.MinValue;
@@ -213,6 +216,8 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 						default:
 							throw new InvalidOperationException($"Unexpected record: {record}");
 					}
+
+					countAccumulatedRecords++;
 
 					if (record.LogPosition == scavengePointPosition) {
 						// accumulated the scavenge point, time to stop.
