@@ -673,17 +673,16 @@ namespace EventStore.Core.Index {
 		}
 
 		private bool TryGetNextEntryInternal(ulong stream, long afterVersion, out IndexEntry entry) {
-			var awaiting = _awaitingMemTables;
-
-			foreach (var t in awaiting) {
-				if(t.IsFromIndexMap) continue;
-				if (t.Table.TryGetNextEntry(stream, afterVersion, out entry))
+			var map = _indexMap;
+			foreach (var table in map.InReverseOrder()) {
+				if (table.TryGetNextEntry(stream, afterVersion, out entry))
 					return true;
 			}
 
-			var map = _indexMap;
-			foreach (var table in map.InOrder()) {
-				if (table.TryGetNextEntry(stream, afterVersion, out entry))
+			var awaiting = _awaitingMemTables;
+			for (var index = awaiting.Count - 1; index >= 0; index--) {
+				if(awaiting[index].IsFromIndexMap) continue;
+				if (awaiting[index].Table.TryGetNextEntry(stream, afterVersion, out entry))
 					return true;
 			}
 
