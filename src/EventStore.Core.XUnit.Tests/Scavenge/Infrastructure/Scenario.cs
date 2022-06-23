@@ -229,6 +229,8 @@ namespace EventStore.Core.XUnit.Tests.Scavenge {
 				replicationCheckpoint: dbResult.Db.Config.ReplicationCheckpoint);
 
 			readIndex.Init(dbResult.Db.Config.WriterCheckpoint.Read());
+			// wait for tables to be merged
+			tableIndex.WaitForBackgroundTasks();
 
 			Scavenger<string> sut = null;
 			try {
