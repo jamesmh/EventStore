@@ -358,21 +358,20 @@ namespace EventStore.Core.Index {
 		}
 
 		public void Scavenge(IIndexScavengerLog log, CancellationToken ct) =>
-			Scavenge(shouldKeep: null, log: log, ct: ct);
+			Scavenge(checkSuitability: table => { }, shouldKeep: null, log: log, ct: ct);
 
 		public void Scavenge(
+			Action<PTable> checkSuitability,
 			Func<IndexEntry, bool> shouldKeep,
 			IIndexScavengerLog log,
 			CancellationToken ct) {
 
-			//qq is it a problem that we are pausing memtable processing for the duration of the
-			// scavenge? especially if we throttle the scavenge?
 			GetExclusiveBackgroundTask(ct);
 			var sw = Stopwatch.StartNew();
 
 			try {
 				Log.Info("Starting scavenge of TableIndex.");
-				ScavengeInternal(shouldKeep, log, ct);
+				ScavengeInternal(checkSuitability, shouldKeep, log, ct);
 			} finally {
 				// Since scavenging indexes is the only place the ExistsAt optimization makes sense (and takes up a lot of memory), we can clear it after an index scavenge has completed. 
 				TFChunkReaderExistsAtOptimizer.Instance.DeOptimizeAll();
@@ -389,6 +388,7 @@ namespace EventStore.Core.Index {
 		}
 
 		private void ScavengeInternal(
+			Action<PTable> checkSuitability,
 			Func<IndexEntry, bool> shouldKeep,
 			IIndexScavengerLog log,
 			CancellationToken ct) {
@@ -406,6 +406,7 @@ namespace EventStore.Core.Index {
 
 						Func<IndexEntry, bool> existsAt = entry => reader.ExistsAt(entry.Position);
 						var scavengeResult = _indexMap.Scavenge(pTable.Id, ct,
+							checkSuitability,
 							shouldKeep ?? existsAt,
 							(streamId, currentHash) => UpgradeHash(streamId, currentHash),
 							existsAt,

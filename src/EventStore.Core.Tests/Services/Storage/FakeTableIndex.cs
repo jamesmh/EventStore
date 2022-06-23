@@ -89,6 +89,7 @@ namespace EventStore.Core.Tests.Services.Storage {
 		}
 
 		public void Scavenge(
+			Action<PTable> checkSuitability,
 			Func<IndexEntry, bool> shouldKeep,
 			IIndexScavengerLog log,
 			CancellationToken ct) {

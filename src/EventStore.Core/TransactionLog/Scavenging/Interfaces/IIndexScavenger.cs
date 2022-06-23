@@ -6,6 +6,7 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 	public interface IIndexScavenger {
 		void ScavengeIndex(
 			long scavengePoint,
+			Action<PTable> checkSuitability,
 			Func<IndexEntry, bool> shouldKeep,
 			IIndexScavengerLog log,
 			CancellationToken cancellationToken);
