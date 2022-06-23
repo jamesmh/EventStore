@@ -239,7 +239,7 @@ namespace EventStore.Core.Index {
 						return false;
 
 					var e = list.Keys[endIdx];
-					entry = new IndexEntry(hash, e.EvNum, e.LogPos);;
+					entry = new IndexEntry(hash, e.EvNum, e.LogPos);
 					return true;
 				} finally {
 					Monitor.Exit(list);
