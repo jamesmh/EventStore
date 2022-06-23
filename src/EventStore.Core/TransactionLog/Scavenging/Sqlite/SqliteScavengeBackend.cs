@@ -1,5 +1,6 @@
 ﻿using System;
 using EventStore.Common.Log;
+using EventStore.Common.Utils;
 using Microsoft.Data.Sqlite;
 
 namespace EventStore.Core.TransactionLog.Scavenging.Sqlite {
@@ -19,7 +20,7 @@ namespace EventStore.Core.TransactionLog.Scavenging.Sqlite {
 		private const int SqliteNormalSynchronousValue = 1;
 		private const int DefaultSqliteCacheSize = 2 * 1024 * 1024;
 		private const int SqlitePageSize = 16 * 1024;
-		private readonly int _cacheSizeInBytes;
+		private readonly SqliteCacheSize _cacheSize;
 		private SqliteBackend _sqliteBackend;
 
 		private const int SchemaVersion = 1;
@@ -37,7 +38,8 @@ namespace EventStore.Core.TransactionLog.Scavenging.Sqlite {
 		public ITransactionManager TransactionManager { get; private set; }
 
 		public SqliteScavengeBackend(int cacheSizeInBytes = DefaultSqliteCacheSize) {
-			_cacheSizeInBytes = Math.Abs(cacheSizeInBytes);
+			Ensure.Positive(cacheSizeInBytes, nameof(cacheSizeInBytes));
+			_cacheSize = new SqliteCacheSize(cacheSizeInBytes);
 		}
 
 		public void Dispose() {
@@ -112,18 +114,12 @@ namespace EventStore.Core.TransactionLog.Scavenging.Sqlite {
 			}
 
 			// cache size in kibi bytes is passed as a negative value, otherwise it's amount of pages
-			var cacheSize = -1 * GetCacheSizeInKibiBytes();
+			var cacheSize = _cacheSize.NegativeKibibytes;
 			_sqliteBackend.SetPragmaValue(SqliteBackend.CacheSize, cacheSize.ToString());
 			var currentCacheSize = int.Parse(_sqliteBackend.GetPragmaValue(SqliteBackend.CacheSize));
 			if (currentCacheSize != cacheSize) {
 				throw new Exception($"Failed to configure cache size, unexpected value: {currentCacheSize}");
 			}
-		}
-
-		private int GetCacheSizeInKibiBytes() {
-			var cacheSizeInKibiBytes = _cacheSizeInBytes / 1024;
-			var defaultCacheSizeInKibiBytes = DefaultSqliteCacheSize / 1024;
-			return Math.Max(cacheSizeInKibiBytes, defaultCacheSizeInKibiBytes);
 		}
 
 		private void InitializeSchemaVersion() {
@@ -151,6 +147,20 @@ namespace EventStore.Core.TransactionLog.Scavenging.Sqlite {
 
 		public void LogStats() {
 			Log.Trace($"SCAVENGING: {GetStats().PrettyPrint()}");
+		}
+
+		struct SqliteCacheSize {
+			public SqliteCacheSize(int cacheSizeInBytes) {
+				CacheSizeInBytes = cacheSizeInBytes;
+			}
+
+			public int CacheSizeInBytes { get; }
+			public int NegativeKibibytes {
+				get {
+					var cacheSizeInKibiBytes = CacheSizeInBytes / 1024;
+					return -1 * cacheSizeInKibiBytes;
+				}
+			}
 		}
 	}
 }
