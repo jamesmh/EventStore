@@ -109,12 +109,18 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 								sw,
 								cancellationToken);
 
-						// resetting must happen after execution, but need not be in a transaction
-						// which is handy, because we cant run transactions concurrently very well
-						// https://www.sqlite.org/cgi/src/doc/begin-concurrent/doc/begin_concurrent.md)
-						concurrentState.ResetChunkWeights(
-							physicalChunk.ChunkStartNumber,
-							physicalChunk.ChunkEndNumber);
+							// resetting must happen after execution, but need not be in a transaction
+							// which is handy, because we cant run transactions concurrently very well
+							// https://www.sqlite.org/cgi/src/doc/begin-concurrent/doc/begin_concurrent.md)
+							concurrentState.ResetChunkWeights(
+								physicalChunk.ChunkStartNumber,
+								physicalChunk.ChunkEndNumber);
+						} else {
+							Log.Trace(
+								"SCAVENGING: skipped physical chunk: {oldChunkName} " +
+								"with weight {physicalWeight:N0}. ",
+								physicalChunk.Name,
+								physicalWeight);
 						}
 						cancellationToken.ThrowIfCancellationRequested();
 					},
