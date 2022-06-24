@@ -573,10 +573,10 @@ namespace EventStore.Core.TransactionLog.Chunks.TFChunk {
 
 			protected bool TryReadForwardRawInternal(ReaderWorkItem workItem, long actualPosition, Func<int, byte[]> getBuffer,
 				out byte[] record, out int length) {
+				length = -1;
 				record = null;
-				length = 0;
 
-				workItem.Stream.Position =  GetRawPosition(actualPosition);
+				workItem.Stream.Position = GetRawPosition(actualPosition);
 				if (!ValidateRecordPosition(actualPosition))
 					return false;
 
