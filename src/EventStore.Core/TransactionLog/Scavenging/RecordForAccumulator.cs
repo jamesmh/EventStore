@@ -47,7 +47,7 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 
 		public class TombStoneRecord : RecordForAccumulator<TStreamId> {
 			// old scavenge, index writer and index committer are set up to handle
-			// tombstones that have abitrary event numbers, so lets handle them here
+			// tombstones that have arbitrary event numbers, so let's handle them here
 			// in case it used to be possible to create them.
 			public long EventNumber => _prepareView.ExpectedVersion + 1;
 		}
