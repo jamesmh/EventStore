@@ -48,7 +48,7 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 				return DiscardDecision.Keep;
 			}
 
-			// keep last event instream
+			// keep last event in stream
 			if (IsLastEventInStream) {
 				return DiscardDecision.Keep;
 			}
