@@ -80,7 +80,7 @@ namespace EventStore.Core.TransactionLog.Scavenging {
 				throw new Exception($"Could not get TimeStamp range for chunk {LogicalChunkNumber}");
 			}
 
-			// range is guanranteed to be non-empty
+			// range is guaranteed to be non-empty
 			if (cutoffTime < createdAtRange.Min) {
 				return DiscardDecision.Keep;
 			}
